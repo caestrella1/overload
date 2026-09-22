@@ -1,0 +1,11 @@
+Date,Workout Name,Duration,Exercise Name,Set Order,Weight,Reps,Distance,Seconds,Notes,Workout Notes,RPE
+2019-01-28 12:24:23,"Pull (Back & Biceps)",1h 1m,"Pull Up (Assisted)",1,70.0,11.0,0,0.0,"","Log weights by size used, not by total weight.",
+2019-01-28 12:24:23,"Pull (Back & Biceps)",1h 1m,"Pull Up (Assisted)",2,100.0,8.0,0,0.0,,,
+2019-01-28 12:24:23,"Pull (Back & Biceps)",1h 1m,"Pull Up (Assisted)",3,110.0,8.0,0,0.0,,,
+2019-01-28 12:24:23,"Pull (Back & Biceps)",1h 1m,"Pull Up (Assisted)",4,120.0,0.0,0,0.0,,,
+2019-01-28 12:24:23,"Pull (Back & Biceps)",1h 1m,"Bent Over Row (Dumbbell)",1,10.0,12.0,0,0.0,"",,
+2019-01-30 18:02:00,"Push",55m,"Bench Press (Barbell)",W,45.0,10.0,0,0.0,,,
+2019-01-30 18:02:00,"Push",55m,"Bench Press (Barbell)",1,135.0,8.0,0,0.0,,,8
+2019-01-30 18:02:00,"Push",55m,"Bench Press (Barbell)",2,145.0,6.0,0,0.0,"felt strong",,9
+2019-01-30 18:02:00,"Push",55m,"Bench Press (Barbell)",Rest Timer,0,0,0,90,,,
+2019-01-30 18:02:00,"Push",55m,"Running",1,0,0,1.5,600,,,
