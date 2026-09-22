@@ -94,6 +94,8 @@ export interface ImportRecord {
   added: number;
   updated: number;
   duplicates: number;
+  /** Sets deleted because a sync import no longer contained them. */
+  removed: number;
   dateRange: [string, string] | null;
 }
 

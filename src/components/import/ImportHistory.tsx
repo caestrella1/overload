@@ -30,6 +30,12 @@ export function ImportHistory() {
           { key: 'added', label: 'Added', align: 'right', render: (r) => count(r.added) },
           { key: 'updated', label: 'Updated', align: 'right', render: (r) => count(r.updated) },
           {
+            key: 'removed',
+            label: 'Removed',
+            align: 'right',
+            render: (r) => count(r.removed),
+          },
+          {
             key: 'skipped',
             label: 'Skipped',
             align: 'right',
@@ -66,8 +72,19 @@ export function ImportHistory() {
           setUndoing(null);
         }}
       >
-        {undoing &&
-          `Removes the sets that "${undoing.fileName}" added or last updated. Updated sets are removed, not reverted to their earlier values.`}
+        {undoing && (
+          <>
+            <p>
+              Removes the sets that &quot;{undoing.fileName}&quot; added or last updated. Updated
+              sets are removed, not reverted to their earlier values.
+            </p>
+            {!!undoing.removed && (
+              <p className="mt-2">
+                The {count(undoing.removed)} set(s) this import deleted are put back.
+              </p>
+            )}
+          </>
+        )}
       </ConfirmDialog>
     </Card>
   );

@@ -11,6 +11,10 @@ Track progressive overload from your lifting logs. It's a frontend-only React ap
   - Importing a byte-identical file again shows a warning.
   - Rows that appear more than once within the same file are flagged.
   - Settings → Find duplicates scans stored data for sets recorded twice.
+- **Sync (optional, off by default)**: treats the export as the full truth for what it covers, so sets you deleted in Strong are deleted here too.
+  - Scope: sets from the same import source, logged on or after the file's first set. Older history and data from other apps are never touched.
+  - The preview lists every affected workout before anything is removed, and warns when the removals are a large share of the file — the usual sign of a partial export.
+  - Undo puts removed sets back, along with any workout that lost all of its sets.
 - **Import history**: every import can be undone.
 - **Charts**:
   - Per exercise: est. 1RM, top weight, volume, reps, sets, max reps, RPE, distance and duration, by session, week or month.
@@ -60,3 +64,17 @@ src/
 1. Implement `Importer` (`detect(headers)` and `parse(rows)`) in `src/importers/<source>.ts`.
 2. Return normalized sets with stable `key`s. For `contentHash`, use `common.ts`.
 3. Register it in `src/importers/index.ts`.
+
+## Import model
+
+Each set carries a stable identity (`date | exercise | set label | occurrence`) and a hash of its values, which is what makes repeat imports safe:
+
+| In the source app          | On the next import                                                        |
+| -------------------------- | ------------------------------------------------------------------------- |
+| Nothing changed            | Skipped as already stored                                                 |
+| Set edited                 | Offered as an update, on by default                                       |
+| New workout logged         | Added                                                                     |
+| Set or workout deleted     | Removed only if you turn sync on                                          |
+| Workout start time changed | The old copy is removed only with sync on; without it, both copies remain |
+
+Imports never delete anything unless sync is on, and sync only reaches sets from the same source at or after the file's first date.

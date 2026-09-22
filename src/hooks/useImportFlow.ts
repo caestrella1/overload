@@ -45,18 +45,21 @@ export function useImportFlow() {
     [load],
   );
 
-  const commit = useCallback(async (preview: PreviewState, updateChanged: boolean) => {
-    const { parsed, fileName, fileHash } = preview;
-    setState({ step: 'working', message: 'Saving…' });
-    try {
-      const record = await commitImport(db, parsed, { fileName, fileHash, updateChanged });
-      // Ask the browser not to evict our data under storage pressure.
-      void requestPersistence();
-      setState({ step: 'done', record });
-    } catch (e) {
-      setState({ step: 'error', message: errorMessage(e) });
-    }
-  }, []);
+  const commit = useCallback(
+    async (preview: PreviewState, options: { updateChanged: boolean; sync: boolean }) => {
+      const { parsed, fileName, fileHash } = preview;
+      setState({ step: 'working', message: 'Saving…' });
+      try {
+        const record = await commitImport(db, parsed, { fileName, fileHash, ...options });
+        // Ask the browser not to evict our data under storage pressure.
+        void requestPersistence();
+        setState({ step: 'done', record });
+      } catch (e) {
+        setState({ step: 'error', message: errorMessage(e) });
+      }
+    },
+    [],
+  );
 
   const reset = useCallback(() => {
     setState({ step: 'idle' });

@@ -4,6 +4,15 @@ import { formatNumber } from '../../domain/units';
 import type { PreviewState } from '../../hooks/useImportFlow';
 import { MuscleChips, MuscleSourceBadge } from '../MuscleChips';
 import { Button, Callout, Card, Checkbox, StatGrid, StatTile } from '../ui';
+import { SyncSection } from './SyncSection';
+
+/** Names exactly what the button will do, so removals are never a surprise. */
+function commitLabel(incoming: number, removing: number): string {
+  const sets = (n: number) => `${formatNumber(n, 0)} set${n === 1 ? '' : 's'}`;
+  if (incoming && removing) return `Import ${sets(incoming)}, remove ${formatNumber(removing, 0)}`;
+  if (removing) return `Remove ${sets(removing)}`;
+  return `Import ${sets(incoming)}`;
+}
 
 export function ImportPreview({
   state,
@@ -11,14 +20,19 @@ export function ImportPreview({
   onCancel,
 }: {
   state: PreviewState;
-  onCommit: (updateChanged: boolean) => void;
+  onCommit: (options: { updateChanged: boolean; sync: boolean }) => void;
   onCancel: () => void;
 }) {
   const [updateChanged, setUpdateChanged] = useState(true);
+  // Off by default: removing data is never the automatic choice.
+  const [sync, setSync] = useState(false);
   const { parsed, preview, fileName } = state;
   const { plan } = preview;
   const changed = plan.toUpdate.length;
+  const removable = preview.sync.toRemove.length;
+  const removing = sync ? removable : 0;
   const incoming = plan.toAdd.length + (updateChanged ? changed : 0);
+  const nothingToDo = !incoming && !removing;
   const range = preview.dateRange
     ? ` · ${formatDate(preview.dateRange[0])} to ${formatDate(preview.dateRange[1])}`
     : '';
@@ -36,9 +50,15 @@ export function ImportPreview({
             Sets already stored will be skipped.
           </Callout>
         )}
-        {!incoming && (
+        {!incoming && !removable && (
           <Callout tone="info" title="Nothing new to import">
             Every set in this file is already stored.
+          </Callout>
+        )}
+        {!incoming && removable > 0 && (
+          <Callout tone="info" title="No new sets in this export">
+            It differs from what&apos;s stored only by {formatNumber(removable, 0)} set(s) deleted
+            in the source app.
           </Callout>
         )}
         {parsed.warnings.map((w) => (
@@ -50,7 +70,11 @@ export function ImportPreview({
         <StatTile compact label="New sets" value={formatNumber(plan.toAdd.length, 0)} />
         <StatTile compact label="Already stored" value={formatNumber(plan.duplicates, 0)} />
         <StatTile compact label="Edited since last import" value={formatNumber(changed, 0)} />
-        <StatTile compact label="New workouts" value={formatNumber(preview.newWorkouts, 0)} />
+        <StatTile
+          compact
+          label="Deleted in the app"
+          value={formatNumber(preview.sync.toRemove.length, 0)}
+        />
       </StatGrid>
 
       {changed > 0 && (
@@ -60,6 +84,8 @@ export function ImportPreview({
           </Checkbox>
         </div>
       )}
+
+      <SyncSection sync={preview.sync} enabled={sync} onChange={setSync} />
 
       {preview.newExercises.length > 0 && (
         <details className="mb-5" open={preview.newExercises.length <= 12}>
@@ -88,12 +114,12 @@ export function ImportPreview({
       <div className="flex gap-2">
         <Button
           variant="primary"
-          disabled={!incoming}
+          disabled={nothingToDo}
           onClick={() => {
-            onCommit(updateChanged);
+            onCommit({ updateChanged, sync });
           }}
         >
-          Import {formatNumber(incoming, 0)} sets
+          {commitLabel(incoming, removing)}
         </Button>
         <Button onClick={onCancel}>Cancel</Button>
       </div>

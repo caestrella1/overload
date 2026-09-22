@@ -1,11 +1,21 @@
 import { ImportHistory } from '../components/import/ImportHistory';
 import { ImportPreview } from '../components/import/ImportPreview';
 import { Button, Callout, Card, FileDropzone, PageHeader, TextLink } from '../components/ui';
+import type { ImportRecord } from '../domain/types';
 import { formatNumber } from '../domain/units';
 import { useImportFlow } from '../hooks/useImportFlow';
 import { IMPORTERS } from '../importers';
 import { SampleDataBanner } from '../components/SampleDataBanner';
 import { SAMPLE_FILE_NAME } from '../demo/sampleName';
+
+/** "Added 120 sets, updated 3, removed 8, skipped 2,900 already stored." */
+function importSummary(record: ImportRecord): string {
+  const parts = [`Added ${formatNumber(record.added, 0)} sets`];
+  if (record.updated) parts.push(`updated ${formatNumber(record.updated, 0)}`);
+  if (record.removed) parts.push(`removed ${formatNumber(record.removed, 0)}`);
+  if (record.duplicates) parts.push(`skipped ${formatNumber(record.duplicates, 0)} already stored`);
+  return `${parts.join(', ')}.`;
+}
 
 export default function ImportPage() {
   const { state, load, loadFile, commit, reset } = useImportFlow();
@@ -47,19 +57,14 @@ export default function ImportPage() {
       )}
       {state.step === 'done' && (
         <Callout className="mb-6" tone="good" title="Import complete">
-          Added {formatNumber(state.record.added, 0)} sets
-          {state.record.updated ? `, updated ${formatNumber(state.record.updated, 0)}` : ''}
-          {state.record.duplicates
-            ? `, skipped ${formatNumber(state.record.duplicates, 0)} already stored`
-            : ''}
-          . <TextLink to="/">Go to dashboard</TextLink>
+          {importSummary(state.record)} <TextLink to="/">Go to dashboard</TextLink>
         </Callout>
       )}
       {state.step === 'preview' && (
         <ImportPreview
           key={state.fileHash}
           state={state}
-          onCommit={(updateChanged) => void commit(state, updateChanged)}
+          onCommit={(options) => void commit(state, options)}
           onCancel={reset}
         />
       )}

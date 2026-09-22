@@ -7,6 +7,7 @@ import {
   clearAllData,
   commitImport,
   confirmSuggestedMuscles,
+  countRemovals,
   exportBackup,
   findDuplicateSets,
   loadSettings,
@@ -141,5 +142,125 @@ describe('confirmSuggestedMuscles', () => {
     const changed = await confirmSuggestedMuscles(db);
     expect(changed).toBe(4);
     expect(await db.exercises.where('muscleSource').equals('suggested').count()).toBe(0);
+  });
+});
+
+describe('sync imports', () => {
+  /** Drops the last two Bench Press sets, as if they were deleted in Strong. */
+  const withDeletedSets = sample
+    .split('\n')
+    .filter((l) => !l.includes('145.0') && !l.includes('135.0'))
+    .join('\n');
+
+  it('previews what a newer export no longer contains', async () => {
+    await importText(sample, 'h1');
+    const preview = await previewImport(db, parseFile(withDeletedSets), 'h2');
+    expect(preview.sync.toRemove.map((s) => s.weight)).toEqual([135, 145]);
+    expect(preview.sync.inScope).toBe(9);
+    expect(preview.sync.from).toBe('2019-01-28T12:24:23');
+  });
+
+  it('removes them only when sync is on', async () => {
+    await importText(sample, 'h1');
+    const skipped = await importText(withDeletedSets, 'h2');
+    expect(skipped.removed).toBe(0);
+    expect(await db.sets.count()).toBe(9);
+
+    const parsed = parseFile(withDeletedSets);
+    const synced = await commitImport(db, parsed, {
+      fileName: 'newer.csv',
+      fileHash: 'h3',
+      updateChanged: true,
+      sync: true,
+    });
+    expect(synced.removed).toBe(2);
+    expect(await db.sets.count()).toBe(7);
+    expect(await db.sets.filter((s) => s.weight === 145).count()).toBe(0);
+  });
+
+  it('leaves sets older than the file, and sets from other sources, alone', async () => {
+    await importText(sample, 'h1');
+    const older = [
+      'Date,Workout Name,Exercise Name,Set Order,Weight,Reps',
+      '2018-01-01 10:00:00,Old,Squat (Barbell),1,100,5',
+    ].join('\n');
+    await importText(older, 'h2');
+
+    // A file covering only 2019 onward must not reach the 2018 set.
+    const parsed = parseFile(withDeletedSets);
+    await commitImport(db, parsed, {
+      fileName: 'newer.csv',
+      fileHash: 'h3',
+      updateChanged: true,
+      sync: true,
+    });
+    expect(await db.sets.filter((s) => s.date.startsWith('2018')).count()).toBe(1);
+
+    // Sets from a different source are never candidates.
+    const other = parseFile(withDeletedSets);
+    const preview = await previewImport(db, { ...other, source: 'hevy' }, 'h4');
+    expect(preview.sync.toRemove).toHaveLength(0);
+    expect(preview.sync.inScope).toBe(0);
+  });
+
+  it('undo restores removed sets', async () => {
+    await importText(sample, 'h1');
+    const synced = await commitImport(db, parseFile(withDeletedSets), {
+      fileName: 'newer.csv',
+      fileHash: 'h3',
+      updateChanged: true,
+      sync: true,
+    });
+    expect(await countRemovals(db, synced.id ?? -1)).toBe(2);
+
+    await undoImport(db, synced.id ?? -1);
+    expect(await db.sets.count()).toBe(9);
+    expect(await db.sets.filter((s) => s.weight === 145).count()).toBe(1);
+    expect(await countRemovals(db, synced.id ?? -1)).toBe(0);
+    // The restored workout comes back with its sets.
+    expect(await db.workouts.count()).toBe(2);
+  });
+
+  it('keeps sync removals in a backup round-trip', async () => {
+    await importText(sample, 'h1');
+    const synced = await commitImport(db, parseFile(withDeletedSets), {
+      fileName: 'newer.csv',
+      fileHash: 'h3',
+      updateChanged: true,
+      sync: true,
+    });
+    const backup = await exportBackup(db);
+    await clearAllData(db, { keepSettings: false });
+    await restoreBackup(db, JSON.parse(JSON.stringify(backup)) as Backup);
+    await undoImport(db, synced.id ?? -1);
+    expect(await db.sets.count()).toBe(9);
+  });
+});
+
+describe('sync removing a whole workout', () => {
+  /** Drops every set of the 2019-01-30 "Push" session. */
+  const withoutPush = sample
+    .split('\n')
+    .filter((l) => !l.startsWith('2019-01-30'))
+    .join('\n');
+
+  it('undo restores the workout record along with its sets', async () => {
+    await importText(sample, 'h1');
+    expect(await db.workouts.count()).toBe(2);
+
+    const synced = await commitImport(db, parseFile(withoutPush), {
+      fileName: 'newer.csv',
+      fileHash: 'h2',
+      updateChanged: true,
+      sync: true,
+    });
+    expect(synced.removed).toBe(4);
+    expect(await db.workouts.count()).toBe(1);
+
+    await undoImport(db, synced.id ?? -1);
+    expect(await db.sets.count()).toBe(9);
+    expect(await db.workouts.count()).toBe(2);
+    const push = await db.workouts.get('2019-01-30T18:02:00|Push');
+    expect(push?.durationSec).toBe(3300);
   });
 });
