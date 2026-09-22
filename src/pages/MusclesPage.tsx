@@ -1,22 +1,24 @@
 import { useMemo } from 'react';
-import { BarList, StackedBars } from '../components/charts';
+import { BarList, StackedBars, TrendChart, type ChartSeries } from '../components/charts';
+import { MuscleFilter } from '../components/muscles/MuscleFilter';
+import { RisingMuscles } from '../components/muscles/RisingMuscles';
 import { NoDataPage } from '../components/NoDataPage';
 import { RangeControls } from '../components/RangeControls';
-import { Card, Muted, PageHeader, Segmented, Select } from '../components/ui';
+import { Card, Muted, PageHeader, Segmented } from '../components/ui';
 import { inRange } from '../domain/analysis';
 import type { Bucket } from '../domain/dates';
 import { muscleContributors, muscleSeries, totalsByKey } from '../domain/metrics';
-import { MUSCLE_GROUPS, REGIONS } from '../domain/muscles';
+import { REGIONS } from '../domain/muscles';
+import { muscleTrends } from '../domain/trends';
 import type { MuscleGroup } from '../domain/types';
 import { formatCompact, formatNumber } from '../domain/units';
 import { useChartControls } from '../hooks/useChartControls';
 import { useAllSets, useExercises, useSettings } from '../hooks/useData';
 import { usePref } from '../hooks/usePref';
 import { SERIES_COLORS } from '../lib/colors';
+import { activeSlots, toggleSlot, type Slots } from '../lib/slots';
 
 type Metric = 'sets' | 'volume';
-/** The top chart either breaks training down by region, or isolates one muscle. */
-type View = 'regions' | 'muscle';
 
 const BUCKETS: { id: Bucket; label: string }[] = [
   { id: 'week', label: 'Week' },
@@ -26,13 +28,14 @@ const BUCKETS: { id: Bucket; label: string }[] = [
 /** Regions keep a fixed color slot so filtering never repaints them. */
 const REGION_KEYS = REGIONS.map((r, i) => ({ id: r, label: r, color: SERIES_COLORS[i] ?? '' }));
 
+const colorAt = (index: number) => SERIES_COLORS[index] ?? '';
+
 export default function MusclesPage() {
   const sets = useAllSets();
   const exercises = useExercises();
   const settings = useSettings();
   const [metric, setMetric] = usePref<Metric>('muscles.metric', 'sets');
-  const [selected, setSelected] = usePref<MuscleGroup>('muscles.selected', 'Chest');
-  const [view, setView] = usePref<View>('muscles.view', 'regions');
+  const [slots, setSlots] = usePref<Slots<MuscleGroup>>('muscles.slots', []);
   const { range, setRange, bucket, setBucket, start } = useChartControls('muscles', {
     range: '6m',
     bucket: 'week',
@@ -50,17 +53,27 @@ export default function MusclesPage() {
     [settings, metric],
   );
 
+  const selected = useMemo(() => activeSlots(slots), [slots]);
+  // The exercise breakdown follows the first chosen muscle, or the most-trained one.
+  const focus = selected[0];
+
   const data = useMemo(() => {
     if (!exercises) return null;
     const regions = muscleSeries(ranged, exercises, { ...opts, bucket, level: 'region' });
     const muscles = muscleSeries(ranged, exercises, { ...opts, bucket, level: 'muscle' });
+    const totals = totalsByKey(muscles.rows, muscles.groups);
+    const contributor = focus ?? (totals[0]?.key as MuscleGroup | undefined);
     return {
       regions,
       muscles,
-      totals: totalsByKey(muscles.rows, MUSCLE_GROUPS),
-      contributors: muscleContributors(ranged, exercises, selected, opts).slice(0, 10),
+      totals,
+      contributor,
+      rising: muscleTrends(muscles.rows, muscles.groups),
+      contributors: contributor
+        ? muscleContributors(ranged, exercises, contributor, opts).slice(0, 10)
+        : [],
     };
-  }, [ranged, exercises, opts, bucket, selected]);
+  }, [ranged, exercises, opts, bucket, focus]);
 
   if (!sets || !data) return null;
   if (!sets.length) {
@@ -69,22 +82,32 @@ export default function MusclesPage() {
 
   const fmt = (v: number) => formatCompact(v, 1);
   const metricLabel = metric === 'sets' ? 'Sets' : `Volume (${settings.defaultUnit})`;
-  const single = view === 'muscle';
-
-  // One series for the chosen muscle. Periods it was not trained stay in, as zeros,
-  // so gaps in training are visible rather than collapsed away.
-  const muscleRows = data.muscles.rows.map((r) => ({
-    period: r.period,
-    value: Number(r[selected]) || 0,
-  }));
-  const muscleOptions = MUSCLE_GROUPS.filter(
-    (m) => m === selected || data.muscles.groups.includes(m),
-  ).map((m) => ({ id: m, label: m }));
-
-  const focusMuscle = (m: MuscleGroup) => {
-    setSelected(m);
-    setView('muscle');
+  const toggle = (m: MuscleGroup) => {
+    setSlots(toggleSlot(slots, m));
   };
+
+  // Chips cover everything trained in range, plus anything selected that no longer is.
+  const chips = [
+    ...data.totals.map((t) => t.key as MuscleGroup),
+    ...selected.filter((m) => !data.muscles.groups.includes(m)),
+  ];
+
+  const series: ChartSeries[] = slots.flatMap((muscle, index) =>
+    muscle
+      ? [
+          {
+            id: muscle,
+            label: muscle,
+            color: colorAt(index),
+            points: data.muscles.rows.map((r) => ({
+              period: r.period,
+              // A period with no work for this muscle is a real zero, not a gap.
+              value: Number(r[muscle]) || 0,
+            })),
+          },
+        ]
+      : [],
+  );
 
   return (
     <>
@@ -113,49 +136,39 @@ export default function MusclesPage() {
         }
       />
 
+      <RisingMuscles
+        trends={data.rising.trends}
+        window={data.rising.window}
+        bucket={bucket}
+        metricLabel={metricLabel}
+        selected={selected}
+        onSelect={toggle}
+      />
+
       <Card
         className="mb-6"
         title={
-          single
-            ? `${selected}: ${metricLabel.toLowerCase()} per ${bucket}`
+          selected.length
+            ? `${selected.join(', ')}: ${metricLabel.toLowerCase()} per ${bucket}`
             : `${metricLabel} by body region`
         }
         subtitle={
-          single
-            ? 'Only this muscle, so its trend is readable on its own.'
+          selected.length
+            ? 'Only the muscles you picked, so each one reads on its own.'
             : 'Every muscle stacked, to see how a session splits up.'
         }
-        actions={
-          <>
-            <Segmented<View>
-              label="Chart contents"
-              value={view}
-              onChange={setView}
-              options={[
-                { id: 'regions', label: 'All muscles' },
-                { id: 'muscle', label: 'One muscle' },
-              ]}
-            />
-            {single && (
-              <Select
-                label="Muscle"
-                value={selected}
-                onChange={(m) => {
-                  setSelected(m);
-                }}
-                options={muscleOptions}
-              />
-            )}
-          </>
-        }
       >
-        {single ? (
-          <StackedBars
-            rows={muscleRows}
-            keys={[{ id: 'value', label: selected, color: SERIES_COLORS[0] ?? '' }]}
-            bucket={bucket}
-            format={fmt}
-          />
+        <MuscleFilter
+          muscles={chips}
+          slots={slots}
+          colorAt={colorAt}
+          onToggle={toggle}
+          onClear={() => {
+            setSlots([]);
+          }}
+        />
+        {series.length ? (
+          <TrendChart series={series} bucket={bucket} format={fmt} />
         ) : (
           <StackedBars
             rows={data.regions.rows}
@@ -178,7 +191,7 @@ export default function MusclesPage() {
               format={fmt}
               selected={selected}
               onSelect={(id) => {
-                focusMuscle(id as MuscleGroup);
+                toggle(id as MuscleGroup);
               }}
             />
           ) : (
@@ -186,7 +199,10 @@ export default function MusclesPage() {
           )}
         </Card>
 
-        <Card className="lg:col-span-3" title={`Top exercises for ${selected}`}>
+        <Card
+          className="lg:col-span-3"
+          title={data.contributor ? `Top exercises for ${data.contributor}` : 'Top exercises'}
+        >
           {data.contributors.length ? (
             <BarList
               wideLabels

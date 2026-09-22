@@ -18,11 +18,13 @@ export function BarList({
 }: {
   items: BarListItem[];
   format: ValueFormat;
-  selected?: string;
+  /** Ids to emphasize; the rest are dimmed. */
+  selected?: readonly string[];
   onSelect?: (id: string) => void;
   wideLabels?: boolean;
 }) {
   const max = Math.max(...items.map((i) => i.value), 0);
+  const anySelected = !!selected?.length;
   return (
     <ul className="space-y-1">
       {items.map((it) => {
@@ -44,7 +46,7 @@ export function BarList({
                   width: `${max ? (it.value / max) * 100 : 0}%`,
                   minWidth: it.value > 0 ? 2 : 0,
                   background: 'var(--series-1)',
-                  opacity: selected && selected !== it.id ? 0.45 : 1,
+                  opacity: anySelected && !selected.includes(it.id) ? 0.45 : 1,
                 }}
               />
             </span>
@@ -61,10 +63,10 @@ export function BarList({
                 onClick={() => {
                   onSelect(it.id);
                 }}
-                aria-pressed={selected === it.id}
+                aria-pressed={selected?.includes(it.id) ?? false}
                 className={cx(
                   'focus-ring flex w-full items-center gap-3 rounded-md px-2 py-1 hover:bg-surface-2',
-                  selected === it.id && 'bg-surface-2',
+                  selected?.includes(it.id) && 'bg-surface-2',
                 )}
               >
                 {content}
