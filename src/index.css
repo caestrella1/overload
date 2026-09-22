@@ -115,8 +115,29 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-.tabular {
+/* Shared style primitives, used by components rather than repeated per element. */
+@utility tabular {
   font-variant-numeric: tabular-nums;
+}
+
+@utility focus-ring {
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+@utility field {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding: calc(var(--spacing) * 1.5) calc(var(--spacing) * 3);
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--line-height);
+  color: var(--text-primary);
+  &::placeholder {
+    color: var(--text-muted);
+  }
 }
 
 /* Recharts focus outline on click is noisy; keep keyboard focus visible. */

@@ -1,15 +1,21 @@
-import type { Exercise } from '../domain/types';
-import { Badge } from './ui';
+import type { MuscleAssignment, MuscleSource } from '../domain/types';
+import { Badge, type Tone } from './ui';
 
-export function MuscleSourceBadge({ source }: { source: Exercise['muscleSource'] }) {
-  if (source === 'user') return <Badge tone="good">Set by you</Badge>;
-  if (source === 'source') return <Badge tone="accent">From import</Badge>;
-  if (source === 'suggested') return <Badge tone="warning">Suggested</Badge>;
-  return <Badge tone="critical">Unassigned</Badge>;
+const SOURCE_BADGES: Record<MuscleSource, { tone: Tone; label: string }> = {
+  user: { tone: 'good', label: 'Set by you' },
+  source: { tone: 'accent', label: 'From import' },
+  suggested: { tone: 'warning', label: 'Suggested' },
+  unassigned: { tone: 'critical', label: 'Unassigned' },
+};
+
+export function MuscleSourceBadge({ source }: { source: MuscleSource }) {
+  const b = SOURCE_BADGES[source];
+  return <Badge tone={b.tone}>{b.label}</Badge>;
 }
 
-export function MuscleChips({ exercise }: { exercise: Exercise }) {
-  const { primary, secondary } = exercise.muscles;
+/** Primary muscles filled, secondary outlined. */
+export function MuscleChips({ muscles }: { muscles: MuscleAssignment }) {
+  const { primary, secondary } = muscles;
   if (!primary.length && !secondary.length) return <span className="text-sm text-ink-3">–</span>;
   return (
     <span className="flex flex-wrap gap-1">

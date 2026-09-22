@@ -1,17 +1,54 @@
 import { useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
+import { ExerciseLink } from '../components/ExerciseLink';
 import { MuscleChips, MuscleSourceBadge } from '../components/MuscleChips';
-import { Button, Card, ConfirmDialog, EmptyState, PageHeader, Select } from '../components/ui';
+import { NoDataPage } from '../components/NoDataPage';
+import {
+  Button,
+  Card,
+  ConfirmDialog,
+  DataTable,
+  PageHeader,
+  Select,
+  TextInput,
+} from '../components/ui';
 import { db } from '../db/db';
 import { confirmSuggestedMuscles } from '../db/repo';
 import { groupByExercise, statsForExercise } from '../domain/analysis';
 import { formatDate } from '../domain/dates';
 import { MUSCLE_GROUPS } from '../domain/muscles';
+import type { Exercise, MuscleGroup } from '../domain/types';
 import { exerciseUnit, formatNumber } from '../domain/units';
 import { useAllSets, useExercises, useSettings } from '../hooks/useData';
 
-type Filter = 'all' | 'review' | 'unassigned';
+type StatusFilter = 'all' | 'review' | 'unassigned';
 type Sort = 'recent' | 'sessions' | 'name';
+
+interface Row {
+  ex: Exercise;
+  sessions: number;
+  last: string | null;
+  best: number | null;
+}
+
+const needsReview = (e: Exercise) =>
+  e.muscleSource === 'suggested' || e.muscleSource === 'unassigned';
+
+function matches(row: Row, query: string, muscle: string, status: StatusFilter): boolean {
+  const { ex } = row;
+  if (query && !ex.name.toLowerCase().includes(query.toLowerCase())) return false;
+  if (status === 'review' && !needsReview(ex)) return false;
+  if (status === 'unassigned' && ex.muscleSource !== 'unassigned') return false;
+  if (muscle === 'all') return true;
+  const m = muscle as MuscleGroup;
+  return ex.muscles.primary.includes(m) || ex.muscles.secondary.includes(m);
+}
+
+const SORTERS: Record<Sort, (a: Row, b: Row) => number> = {
+  name: (a, b) => a.ex.name.localeCompare(b.ex.name),
+  sessions: (a, b) => b.sessions - a.sessions,
+  recent: (a, b) => (b.last ?? '').localeCompare(a.last ?? ''),
+};
 
 export default function ExercisesPage() {
   const sets = useAllSets();
@@ -22,50 +59,27 @@ export default function ExercisesPage() {
   const [muscle, setMuscle] = useState('all');
   const [sort, setSort] = useState<Sort>('recent');
   const [confirming, setConfirming] = useState(false);
-  const filter = (params.get('filter') ?? 'all') as Filter;
+  const status = (params.get('filter') ?? 'all') as StatusFilter;
 
-  const rows = useMemo(() => {
+  const rows = useMemo<Row[]>(() => {
     if (!sets || !exercises) return [];
     const groups = groupByExercise(sets);
     return [...exercises.values()].map((ex) => {
-      const list = groups.get(ex.name) ?? [];
-      const stats = statsForExercise(list, ex, settings);
-      const last = stats[stats.length - 1];
-      const best = ex.assisted
-        ? null
-        : stats.reduce<number | null>(
-            (b, s) => (s.e1rm != null && s.e1rm > (b ?? 0) ? s.e1rm : b),
-            null,
-          );
-      return { ex, sessions: stats.length, last: last?.date ?? null, best };
+      const stats = statsForExercise(groups.get(ex.name) ?? [], ex, settings);
+      const e1rms = stats.flatMap((s) => (s.e1rm == null ? [] : [s.e1rm]));
+      return {
+        ex,
+        sessions: stats.length,
+        last: stats[stats.length - 1]?.date ?? null,
+        best: e1rms.length ? Math.max(...e1rms) : null,
+      };
     });
   }, [sets, exercises, settings]);
 
-  const visible = rows
-    .filter(({ ex }) => {
-      if (query && !ex.name.toLowerCase().includes(query.toLowerCase())) return false;
-      if (
-        filter === 'review' &&
-        ex.muscleSource !== 'suggested' &&
-        ex.muscleSource !== 'unassigned'
-      )
-        return false;
-      if (filter === 'unassigned' && ex.muscleSource !== 'unassigned') return false;
-      if (
-        muscle !== 'all' &&
-        !ex.muscles.primary.includes(muscle as never) &&
-        !ex.muscles.secondary.includes(muscle as never)
-      )
-        return false;
-      return true;
-    })
-    .sort((a, b) => {
-      if (sort === 'name') return a.ex.name.localeCompare(b.ex.name);
-      if (sort === 'sessions') return b.sessions - a.sessions;
-      return (b.last ?? '').localeCompare(a.last ?? '');
-    });
-
   if (!exercises) return null;
+  if (!exercises.size) return <NoDataPage title="Exercises">to see your exercises.</NoDataPage>;
+
+  const visible = rows.filter((r) => matches(r, query, muscle, status)).sort(SORTERS[sort]);
   const suggested = [...exercises.values()].filter((e) => e.muscleSource === 'suggested').length;
 
   return (
@@ -100,108 +114,89 @@ export default function ExercisesPage() {
         Marks {suggested} suggested mapping(s) as yours. You can still edit any exercise afterwards.
         Unassigned exercises need to be set individually.
       </ConfirmDialog>
-      {!exercises.size ? (
-        <EmptyState title="No exercises yet">
-          <Link to="/import" className="font-medium text-accent hover:underline">
-            Import your data
-          </Link>{' '}
-          first.
-        </EmptyState>
-      ) : (
-        <Card>
-          <div className="mb-4 flex flex-wrap items-center gap-2">
-            <input
-              type="search"
-              placeholder="Search exercises"
-              aria-label="Search exercises"
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-              }}
-              className="min-w-0 flex-1 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-ink placeholder:text-ink-3 sm:max-w-xs"
-            />
-            <Select
-              label="Muscle group"
-              value={muscle}
-              onChange={setMuscle}
-              options={[
-                { id: 'all', label: 'All muscles' },
-                ...MUSCLE_GROUPS.map((m) => ({ id: m, label: m })),
-              ]}
-            />
-            <Select
-              label="Muscle status"
-              value={filter}
-              onChange={(f) => {
-                setParams(f === 'all' ? {} : { filter: f });
-              }}
-              options={[
-                { id: 'all', label: 'Any muscle status' },
-                { id: 'review', label: 'Needs review' },
-                { id: 'unassigned', label: 'Unassigned' },
-              ]}
-            />
-            <Select
-              label="Sort"
-              value={sort}
-              onChange={setSort}
-              options={[
-                { id: 'recent', label: 'Recently done' },
-                { id: 'sessions', label: 'Most sessions' },
-                { id: 'name', label: 'Name' },
-              ]}
-            />
-          </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-xs text-ink-2">
-                  <th className="px-2 py-2 font-medium">Exercise</th>
-                  <th className="px-2 py-2 font-medium">Muscles</th>
-                  <th className="px-2 py-2 text-right font-medium">Sessions</th>
-                  <th className="px-2 py-2 text-right font-medium">Best e1RM</th>
-                  <th className="px-2 py-2 text-right font-medium">Last done</th>
-                </tr>
-              </thead>
-              <tbody className="tabular">
-                {visible.map(({ ex, sessions, last, best }) => (
-                  <tr key={ex.name} className="border-b border-border/60 last:border-0">
-                    <td className="px-2 py-2">
-                      <Link
-                        to={`/exercises/${encodeURIComponent(ex.name)}`}
-                        className="font-medium text-ink hover:underline"
-                      >
-                        {ex.name}
-                      </Link>
-                    </td>
-                    <td className="px-2 py-2">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <MuscleChips exercise={ex} />
-                        {ex.muscleSource !== 'user' && ex.muscleSource !== 'source' && (
-                          <MuscleSourceBadge source={ex.muscleSource} />
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-2 py-2 text-right text-ink">{sessions}</td>
-                    <td className="px-2 py-2 text-right text-ink">
-                      {best != null
-                        ? `${formatNumber(best)} ${exerciseUnit(ex, settings.defaultUnit)}`
-                        : '–'}
-                    </td>
-                    <td className="px-2 py-2 text-right text-ink-2">
-                      {last ? formatDate(last) : '–'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {!visible.length && (
-              <p className="py-8 text-center text-sm text-ink-3">No exercises match.</p>
-            )}
-          </div>
-        </Card>
-      )}
+      <Card>
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <TextInput
+            type="search"
+            label="Search exercises"
+            placeholder="Search exercises"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+            }}
+            className="flex-1 sm:max-w-xs"
+          />
+          <Select
+            label="Muscle group"
+            value={muscle}
+            onChange={setMuscle}
+            options={[
+              { id: 'all', label: 'All muscles' },
+              ...MUSCLE_GROUPS.map((m) => ({ id: m, label: m })),
+            ]}
+          />
+          <Select<StatusFilter>
+            label="Muscle status"
+            value={status}
+            onChange={(f) => {
+              setParams(f === 'all' ? {} : { filter: f });
+            }}
+            options={[
+              { id: 'all', label: 'Any muscle status' },
+              { id: 'review', label: 'Needs review' },
+              { id: 'unassigned', label: 'Unassigned' },
+            ]}
+          />
+          <Select<Sort>
+            label="Sort"
+            value={sort}
+            onChange={setSort}
+            options={[
+              { id: 'recent', label: 'Recently done' },
+              { id: 'sessions', label: 'Most sessions' },
+              { id: 'name', label: 'Name' },
+            ]}
+          />
+        </div>
+
+        <DataTable
+          minWidth={640}
+          rows={visible}
+          rowKey={(r) => r.ex.name}
+          empty="No exercises match."
+          columns={[
+            { key: 'name', label: 'Exercise', render: (r) => <ExerciseLink name={r.ex.name} /> },
+            {
+              key: 'muscles',
+              label: 'Muscles',
+              render: (r) => (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <MuscleChips muscles={r.ex.muscles} />
+                  {needsReview(r.ex) && <MuscleSourceBadge source={r.ex.muscleSource} />}
+                </div>
+              ),
+            },
+            { key: 'sessions', label: 'Sessions', align: 'right', render: (r) => r.sessions },
+            {
+              key: 'best',
+              label: 'Best e1RM',
+              align: 'right',
+              render: (r) =>
+                r.best != null
+                  ? `${formatNumber(r.best)} ${exerciseUnit(r.ex, settings.defaultUnit)}`
+                  : '–',
+            },
+            {
+              key: 'last',
+              label: 'Last done',
+              align: 'right',
+              className: 'text-ink-2',
+              render: (r) => (r.last ? formatDate(r.last) : '–'),
+            },
+          ]}
+        />
+      </Card>
     </>
   );
 }

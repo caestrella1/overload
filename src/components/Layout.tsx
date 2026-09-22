@@ -1,6 +1,8 @@
 import { Suspense } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
+import { useDemoSeed } from '../hooks/useSampleData';
 import { cx } from '../lib/cx';
+import { Muted } from './ui';
 
 const NAV = [
   { to: '/', label: 'Dashboard', end: true },
@@ -12,13 +14,14 @@ const NAV = [
 ];
 
 export function Layout() {
+  useDemoSeed();
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-10 border-b border-border bg-surface/90 backdrop-blur">
+      <header className="sticky top-[env(safe-area-inset-top,0px)] z-10 border-b border-border bg-surface/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 sm:px-6">
           <NavLink to="/" className="flex items-center gap-2 py-3 font-semibold text-ink">
             <img src="./favicon.svg" alt="" className="h-6 w-6" />
-            <span>Overload</span>
+            <span className="hidden sm:inline">Overload</span>
           </NavLink>
           <nav aria-label="Main" className="-mb-px flex flex-1 gap-1 overflow-x-auto">
             {NAV.map((n) => (
@@ -42,7 +45,7 @@ export function Layout() {
         </div>
       </header>
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
-        <Suspense fallback={<p className="text-sm text-ink-3">Loading…</p>}>
+        <Suspense fallback={<Muted>Loading…</Muted>}>
           <Outlet />
         </Suspense>
       </main>

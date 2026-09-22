@@ -290,21 +290,63 @@ export function detectPrs(stats: SessionStat[], opts: { assisted?: boolean } = {
 
 export type MuscleLevel = 'muscle' | 'region';
 
-export interface MuscleSeriesOptions extends MetricOptions {
-  bucket: Bucket;
+/**
+ * Credit a set gives each muscle (or region) it trains: primary 1, secondary `secondaryWeight`.
+ * When rolled up to regions, a region takes its best credit so a set isn't counted twice.
+ */
+export function muscleCredit(
+  exercise: Exercise,
+  secondaryWeight: number,
+  level: MuscleLevel = 'muscle',
+): Map<string, number> {
+  const credit = new Map<string, number>();
+  const add = (muscle: MuscleGroup, w: number) => {
+    if (w <= 0) return;
+    const g: string = level === 'region' ? REGION_OF[muscle] : muscle;
+    credit.set(g, Math.max(credit.get(g) ?? 0, w));
+  };
+  exercise.muscles.primary.forEach((m) => {
+    add(m, 1);
+  });
+  exercise.muscles.secondary.forEach((m) => {
+    add(m, secondaryWeight);
+  });
+  return credit;
+}
+
+/**
+ * Weight × reps for a set in `targetUnit`. Assisted exercises have no meaningful volume,
+ * so they return 0.
+ */
+export function setVolume(
+  set: WorkoutSet,
+  exercise: Exercise | undefined,
+  targetUnit: Unit,
+): number {
+  if (exercise?.assisted) return 0;
+  const unit = exercise?.unit ?? targetUnit;
+  return convertWeight((set.weight ?? 0) * (set.reps ?? 0), unit, targetUnit);
+}
+
+export interface MuscleOptions extends MetricOptions {
   metric: 'sets' | 'volume';
-  level: MuscleLevel;
   secondaryWeight: number;
   defaultUnit: Unit;
 }
 
+/** Amount one set contributes: 1 for set counts, converted volume otherwise. */
+function setAmount(set: WorkoutSet, exercise: Exercise, opts: MuscleOptions): number {
+  return opts.metric === 'sets' ? 1 : setVolume(set, exercise, opts.defaultUnit);
+}
+
+export interface MuscleSeriesOptions extends MuscleOptions {
+  bucket: Bucket;
+  level: MuscleLevel;
+}
+
 export type MuscleRow = { period: string } & Record<string, number | string>;
 
-/**
- * Sets or volume per muscle group (or region) per period. Primary muscles get full
- * credit, secondary muscles `secondaryWeight`. A muscle counts once per region when
- * rolled up so a set isn't double-counted across muscles in the same region.
- */
+/** Sets or volume per muscle group (or region) per period. */
 export function muscleSeries(
   sets: WorkoutSet[],
   exercises: Map<string, Exercise>,
@@ -316,32 +358,15 @@ export function muscleSeries(
     if (!isWorkingSet(s, opts.includeWarmups)) continue;
     const ex = exercises.get(s.exercise);
     if (!ex) continue;
-    const credit = new Map<string, number>();
-    const add = (muscle: MuscleGroup, w: number) => {
-      const g: string = opts.level === 'region' ? REGION_OF[muscle] : muscle;
-      credit.set(g, Math.max(credit.get(g) ?? 0, w));
-    };
-    ex.muscles.primary.forEach((mg) => {
-      add(mg, 1);
-    });
-    ex.muscles.secondary.forEach((mg) => {
-      add(mg, opts.secondaryWeight);
-    });
+    const amount = setAmount(s, ex, opts);
+    if (amount <= 0) continue;
+    const credit = muscleCredit(ex, opts.secondaryWeight, opts.level);
     if (!credit.size) continue;
-
-    let amount = 1;
-    if (opts.metric === 'volume') {
-      if (ex.assisted) continue;
-      const unit = ex.unit ?? opts.defaultUnit;
-      amount = convertWeight((s.weight ?? 0) * (s.reps ?? 0), unit, opts.defaultUnit);
-      if (amount <= 0) continue;
-    }
 
     const key = bucketKey(s.date, opts.bucket);
     let row = periods.get(key);
     if (!row) periods.set(key, (row = new Map<string, number>()));
     for (const [g, w] of credit) {
-      if (w <= 0) continue;
       row.set(g, (row.get(g) ?? 0) + amount * w);
       seen.add(g);
     }
@@ -350,6 +375,39 @@ export function muscleSeries(
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([period, values]) => ({ period, ...Object.fromEntries(values) }));
   return { rows, groups: [...seen] };
+}
+
+/** How much each exercise contributed to one muscle, largest first. */
+export function muscleContributors(
+  sets: WorkoutSet[],
+  exercises: Map<string, Exercise>,
+  muscle: MuscleGroup,
+  opts: MuscleOptions,
+): { exercise: string; value: number }[] {
+  const totals = new Map<string, number>();
+  for (const s of sets) {
+    if (!isWorkingSet(s, opts.includeWarmups)) continue;
+    const ex = exercises.get(s.exercise);
+    if (!ex) continue;
+    const w = muscleCredit(ex, opts.secondaryWeight).get(muscle);
+    if (!w) continue;
+    const amount = setAmount(s, ex, opts);
+    if (amount > 0) totals.set(s.exercise, (totals.get(s.exercise) ?? 0) + amount * w);
+  }
+  return [...totals.entries()]
+    .map(([exercise, value]) => ({ exercise, value }))
+    .sort((a, b) => b.value - a.value);
+}
+
+/** Sums each key across rows, dropping zeros, largest first. */
+export function totalsByKey(
+  rows: Record<string, number | string>[],
+  keys: string[],
+): { key: string; value: number }[] {
+  return keys
+    .map((key) => ({ key, value: rows.reduce((acc, r) => acc + (Number(r[key]) || 0), 0) }))
+    .filter((t) => t.value > 0)
+    .sort((a, b) => b.value - a.value);
 }
 
 export type { Region };

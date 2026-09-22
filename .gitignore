@@ -37,3 +37,4 @@ Thumbs.db
 # Local data exports (never commit personal workout data)
 *.csv
 !src/**/__fixtures__/*.csv
+dist-demo/

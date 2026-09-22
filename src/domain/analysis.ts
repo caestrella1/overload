@@ -6,12 +6,13 @@ import {
   METRICS,
   metricValue,
   sessionStats,
+  setVolume,
   type MetricId,
   type PrEvent,
   type SessionStat,
 } from './metrics';
 import type { Exercise, Settings, Unit, WorkoutSet } from './types';
-import { convertWeight, exerciseUnit, formatNumber } from './units';
+import { convertWeight, exerciseUnit, formatCompact, formatNumber } from './units';
 
 /** Session stats for one exercise, optionally converted into `targetUnit`. */
 export function statsForExercise(
@@ -76,11 +77,7 @@ export function periodTotals(
       rows.set(period, (row = { period, volume: 0, sets: 0, workouts: 0, keys: new Set() }));
     row.sets++;
     row.keys.add(s.workoutKey);
-    const ex = exercises.get(s.exercise);
-    if (!ex?.assisted) {
-      const unit = exerciseUnit(ex, settings.defaultUnit);
-      row.volume += convertWeight((s.weight ?? 0) * (s.reps ?? 0), unit, settings.defaultUnit);
-    }
+    row.volume += setVolume(s, exercises.get(s.exercise), settings.defaultUnit);
   }
   return [...rows.values()]
     .sort((a, b) => a.period.localeCompare(b.period))
@@ -108,10 +105,18 @@ export function formatDuration(seconds: number): string {
 export function formatMetric(value: number, metric: MetricId, unit: Unit, compact = false): string {
   const def = METRIC_BY_ID[metric];
   if (def.kind === 'seconds') return formatDuration(value);
-  if (compact && Math.abs(value) >= 10000) {
-    return `${formatNumber(value / 1000, 1)}k`;
-  }
+  if (compact && Math.abs(value) >= 10000) return formatCompact(value);
   if (def.kind === 'weight') return `${formatNumber(value, 1)}${compact ? '' : ` ${unit}`}`;
   if (def.kind === 'rpe') return formatNumber(value, 1);
   return formatNumber(value, def.kind === 'distance' ? 2 : 1);
+}
+
+/** "135 lb × 8 reps", "1.5 dist × 600s" and so on, for set chips. */
+export function describeSet(s: WorkoutSet, unit: Unit): string {
+  const parts: string[] = [];
+  if (s.weight) parts.push(`${formatNumber(s.weight)} ${unit}`);
+  if (s.reps != null && (s.reps || !s.seconds)) parts.push(`${formatNumber(s.reps, 0)} reps`);
+  if (s.distance) parts.push(`${formatNumber(s.distance, 2)} dist`);
+  if (s.seconds) parts.push(`${formatNumber(s.seconds, 0)}s`);
+  return parts.join(' × ') || '—';
 }

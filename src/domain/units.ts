@@ -20,3 +20,14 @@ export function formatWeight(value: number | null | undefined, unit: Unit, digit
   if (value == null) return '–';
   return `${formatNumber(value, digits)} ${unit}`;
 }
+
+/** 12,345 -> "12.3k"; smaller values are printed normally. */
+export function formatCompact(value: number, digits = 0): string {
+  return Math.abs(value) >= 10000
+    ? `${formatNumber(value / 1000, 1)}k`
+    : formatNumber(value, digits);
+}
+
+export function exercisePath(name: string): string {
+  return `/exercises/${encodeURIComponent(name)}`;
+}

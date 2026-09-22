@@ -1,5 +1,16 @@
+import { describeSet } from './analysis';
 import type { Exercise, WorkoutSet } from './types';
-import { bucketSeries, detectPrs, estimate1rm, muscleSeries, sessionStats } from './metrics';
+import {
+  bucketSeries,
+  detectPrs,
+  estimate1rm,
+  muscleContributors,
+  muscleCredit,
+  muscleSeries,
+  sessionStats,
+  setVolume,
+  totalsByKey,
+} from './metrics';
 
 let id = 0;
 function s(partial: Partial<WorkoutSet>): WorkoutSet {
@@ -177,5 +188,77 @@ describe('muscleSeries', () => {
     const { rows } = muscleSeries(sets, exercises, { ...base, metric: 'volume', level: 'muscle' });
     expect(rows[0]?.Biceps).toBeCloseTo(100 * 2.20462, 2);
     expect(rows[0]?.Chest).toBe(2000);
+  });
+});
+
+describe('muscle helpers', () => {
+  const bench: Exercise = {
+    name: 'Bench',
+    baseName: 'Bench',
+    equipment: null,
+    muscles: { primary: ['Chest'], secondary: ['Triceps', 'Biceps'] },
+    muscleSource: 'user',
+    unit: null,
+    assisted: false,
+  };
+
+  it('muscleCredit rolls regions up to their best credit', () => {
+    expect(Object.fromEntries(muscleCredit(bench, 0.5))).toEqual({
+      Chest: 1,
+      Triceps: 0.5,
+      Biceps: 0.5,
+    });
+    expect(Object.fromEntries(muscleCredit(bench, 0.5, 'region'))).toEqual({ Chest: 1, Arms: 0.5 });
+    expect(muscleCredit(bench, 0).has('Triceps')).toBe(false);
+  });
+
+  it('setVolume converts units and ignores assisted lifts', () => {
+    const set = s({ weight: 10, reps: 10 });
+    expect(setVolume(set, { ...bench, unit: 'kg' }, 'lb')).toBeCloseTo(220.46, 1);
+    expect(setVolume(set, { ...bench, assisted: true }, 'lb')).toBe(0);
+  });
+
+  it('muscleContributors ranks exercises for a muscle', () => {
+    const exercises = new Map([
+      ['Bench', bench],
+      ['Dip', { ...bench, name: 'Dip', muscles: { primary: ['Triceps'], secondary: [] } }],
+    ]);
+    const sets = [s({ exercise: 'Bench' }), s({ exercise: 'Dip' }), s({ exercise: 'Dip' })];
+    expect(
+      muscleContributors(sets, exercises, 'Triceps', {
+        ...opts,
+        metric: 'sets',
+        secondaryWeight: 0.5,
+        defaultUnit: 'lb',
+      }),
+    ).toEqual([
+      { exercise: 'Dip', value: 2 },
+      { exercise: 'Bench', value: 0.5 },
+    ]);
+  });
+
+  it('totalsByKey sums, drops zeros and sorts', () => {
+    expect(
+      totalsByKey(
+        [
+          { period: 'a', x: 1, y: 0 },
+          { period: 'b', x: 2, z: 5 },
+        ],
+        ['x', 'y', 'z'],
+      ),
+    ).toEqual([
+      { key: 'z', value: 5 },
+      { key: 'x', value: 3 },
+    ]);
+  });
+});
+
+describe('describeSet', () => {
+  it('formats weight, reps, distance and time', () => {
+    expect(describeSet(s({ weight: 135, reps: 8 }), 'lb')).toBe('135 lb × 8 reps');
+    expect(describeSet(s({ weight: 0, reps: 12 }), 'kg')).toBe('12 reps');
+    expect(describeSet(s({ weight: 0, reps: 0, distance: 1.5, seconds: 600 }), 'lb')).toBe(
+      '1.5 dist × 600s',
+    );
   });
 });
