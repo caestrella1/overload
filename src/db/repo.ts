@@ -32,6 +32,18 @@ export async function saveSettings(db: OverloadDB, patch: Partial<Settings>): Pr
   await db.meta.put({ key: SETTINGS_KEY, value: { ...current, ...patch } });
 }
 
+/**
+ * Small named booleans in the meta table, for state that must outlive localStorage
+ * (which some embedded browsers block or wipe between visits).
+ */
+export async function readFlag(db: OverloadDB, key: string): Promise<boolean> {
+  return (await db.meta.get(key))?.value === true;
+}
+
+export async function writeFlag(db: OverloadDB, key: string, value: boolean): Promise<void> {
+  await db.meta.put({ key, value });
+}
+
 export interface SyncPreview {
   /** Stored sets this file covers but no longer contains — deleted in the source app. */
   toRemove: WorkoutSet[];

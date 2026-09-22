@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
-import { BarList, StackedBars, TrendChart } from '../components/charts';
+import { BarList, StackedBars } from '../components/charts';
 import { NoDataPage } from '../components/NoDataPage';
 import { RangeControls } from '../components/RangeControls';
-import { Card, Muted, PageHeader, Segmented } from '../components/ui';
+import { Card, Muted, PageHeader, Segmented, Select } from '../components/ui';
 import { inRange } from '../domain/analysis';
 import type { Bucket } from '../domain/dates';
 import { muscleContributors, muscleSeries, totalsByKey } from '../domain/metrics';
@@ -15,6 +15,8 @@ import { usePref } from '../hooks/usePref';
 import { SERIES_COLORS } from '../lib/colors';
 
 type Metric = 'sets' | 'volume';
+/** The top chart either breaks training down by region, or isolates one muscle. */
+type View = 'regions' | 'muscle';
 
 const BUCKETS: { id: Bucket; label: string }[] = [
   { id: 'week', label: 'Week' },
@@ -30,6 +32,7 @@ export default function MusclesPage() {
   const settings = useSettings();
   const [metric, setMetric] = usePref<Metric>('muscles.metric', 'sets');
   const [selected, setSelected] = usePref<MuscleGroup>('muscles.selected', 'Chest');
+  const [view, setView] = usePref<View>('muscles.view', 'regions');
   const { range, setRange, bucket, setBucket, start } = useChartControls('muscles', {
     range: '6m',
     bucket: 'week',
@@ -66,10 +69,22 @@ export default function MusclesPage() {
 
   const fmt = (v: number) => formatCompact(v, 1);
   const metricLabel = metric === 'sets' ? 'Sets' : `Volume (${settings.defaultUnit})`;
-  const trend = data.muscles.rows.flatMap((r) => {
-    const v = r[selected];
-    return typeof v === 'number' ? [{ period: r.period, value: v }] : [];
-  });
+  const single = view === 'muscle';
+
+  // One series for the chosen muscle. Periods it was not trained stay in, as zeros,
+  // so gaps in training are visible rather than collapsed away.
+  const muscleRows = data.muscles.rows.map((r) => ({
+    period: r.period,
+    value: Number(r[selected]) || 0,
+  }));
+  const muscleOptions = MUSCLE_GROUPS.filter(
+    (m) => m === selected || data.muscles.groups.includes(m),
+  ).map((m) => ({ id: m, label: m }));
+
+  const focusMuscle = (m: MuscleGroup) => {
+    setSelected(m);
+    setView('muscle');
+  };
 
   return (
     <>
@@ -98,20 +113,64 @@ export default function MusclesPage() {
         }
       />
 
-      <Card title={`${metricLabel} by body region`} className="mb-6">
-        <StackedBars
-          rows={data.regions.rows}
-          keys={REGION_KEYS.filter((k) => data.regions.groups.includes(k.id))}
-          bucket={bucket}
-          format={fmt}
-        />
+      <Card
+        className="mb-6"
+        title={
+          single
+            ? `${selected}: ${metricLabel.toLowerCase()} per ${bucket}`
+            : `${metricLabel} by body region`
+        }
+        subtitle={
+          single
+            ? 'Only this muscle, so its trend is readable on its own.'
+            : 'Every muscle stacked, to see how a session splits up.'
+        }
+        actions={
+          <>
+            <Segmented<View>
+              label="Chart contents"
+              value={view}
+              onChange={setView}
+              options={[
+                { id: 'regions', label: 'All muscles' },
+                { id: 'muscle', label: 'One muscle' },
+              ]}
+            />
+            {single && (
+              <Select
+                label="Muscle"
+                value={selected}
+                onChange={(m) => {
+                  setSelected(m);
+                }}
+                options={muscleOptions}
+              />
+            )}
+          </>
+        }
+      >
+        {single ? (
+          <StackedBars
+            rows={muscleRows}
+            keys={[{ id: 'value', label: selected, color: SERIES_COLORS[0] ?? '' }]}
+            bucket={bucket}
+            format={fmt}
+          />
+        ) : (
+          <StackedBars
+            rows={data.regions.rows}
+            keys={REGION_KEYS.filter((k) => data.regions.groups.includes(k.id))}
+            bucket={bucket}
+            format={fmt}
+          />
+        )}
       </Card>
 
       <div className="grid items-start gap-6 lg:grid-cols-5">
         <Card
           className="lg:col-span-2"
           title={`${metricLabel} per muscle`}
-          subtitle="Total in range. Select a muscle to see its trend."
+          subtitle="Total in range. Select a muscle to chart it above."
         >
           {data.totals.length ? (
             <BarList
@@ -119,7 +178,7 @@ export default function MusclesPage() {
               format={fmt}
               selected={selected}
               onSelect={(id) => {
-                setSelected(id as MuscleGroup);
+                focusMuscle(id as MuscleGroup);
               }}
             />
           ) : (
@@ -127,31 +186,21 @@ export default function MusclesPage() {
           )}
         </Card>
 
-        <div className="space-y-6 lg:col-span-3">
-          <Card title={`${selected}: ${metricLabel.toLowerCase()} per ${bucket}`}>
-            <TrendChart
-              series={[{ id: 'v', label: selected, color: SERIES_COLORS[0] ?? '', points: trend }]}
-              bucket={bucket}
+        <Card className="lg:col-span-3" title={`Top exercises for ${selected}`}>
+          {data.contributors.length ? (
+            <BarList
+              wideLabels
               format={fmt}
-              height={240}
+              items={data.contributors.map((c) => ({
+                id: c.exercise,
+                label: c.exercise,
+                value: c.value,
+              }))}
             />
-          </Card>
-          <Card title={`Top exercises for ${selected}`}>
-            {data.contributors.length ? (
-              <BarList
-                wideLabels
-                format={fmt}
-                items={data.contributors.map((c) => ({
-                  id: c.exercise,
-                  label: c.exercise,
-                  value: c.value,
-                }))}
-              />
-            ) : (
-              <Muted>No exercises hit this muscle in range.</Muted>
-            )}
-          </Card>
-        </div>
+          ) : (
+            <Muted>No exercises hit this muscle in range.</Muted>
+          )}
+        </Card>
       </div>
     </>
   );

@@ -12,8 +12,10 @@ import {
   findDuplicateSets,
   loadSettings,
   previewImport,
+  readFlag,
   restoreBackup,
   saveSettings,
+  writeFlag,
   undoImport,
   updateExercise,
 } from './repo';
@@ -262,5 +264,15 @@ describe('sync removing a whole workout', () => {
     expect(await db.workouts.count()).toBe(2);
     const push = await db.workouts.get('2019-01-30T18:02:00|Push');
     expect(push?.durationSec).toBe(3300);
+  });
+});
+
+describe('meta flags', () => {
+  it('default to false and survive a settings save', async () => {
+    expect(await readFlag(db, 'sampleRemoved')).toBe(false);
+    await writeFlag(db, 'sampleRemoved', true);
+    await saveSettings(db, { defaultUnit: 'kg' });
+    expect(await readFlag(db, 'sampleRemoved')).toBe(true);
+    expect((await loadSettings(db)).defaultUnit).toBe('kg');
   });
 });
