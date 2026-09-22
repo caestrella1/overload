@@ -6,6 +6,7 @@ import {
   type Backup,
   clearAllData,
   commitImport,
+  confirmSuggestedMuscles,
   exportBackup,
   findDuplicateSets,
   loadSettings,
@@ -131,5 +132,14 @@ describe('clear, backup and restore', () => {
     await restoreBackup(db, JSON.parse(JSON.stringify(backup)) as Backup);
     expect(await db.sets.count()).toBe(9);
     expect((await loadSettings(db)).e1rmFormula).toBe('brzycki');
+  });
+});
+
+describe('confirmSuggestedMuscles', () => {
+  it('promotes suggestions to user assignments', async () => {
+    await importText(sample, 'h1');
+    const changed = await confirmSuggestedMuscles(db);
+    expect(changed).toBe(4);
+    expect(await db.exercises.where('muscleSource').equals('suggested').count()).toBe(0);
   });
 });

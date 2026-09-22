@@ -1,0 +1,62 @@
+# Overload
+
+Track progressive overload from your lifting logs. It's a frontend-only React app. Data lives in your browser's IndexedDB, with no backend and no uploads.
+
+## Features
+
+- **Import**: Strong CSV exports, both the current format and the older `;`-delimited one with unit columns. Parsing runs in the browser.
+- **Dedupe**:
+  - Every set gets an identity key (workout time + exercise + set label + occurrence) and a content hash. Re-importing a full export adds only new sets.
+  - Sets edited in Strong since your last import are detected, and you choose whether to replace the stored values.
+  - Importing a byte-identical file again shows a warning.
+  - Rows that appear more than once within the same file are flagged.
+  - Settings → Find duplicates scans stored data for sets recorded twice.
+- **Import history**: every import can be undone.
+- **Charts**:
+  - Per exercise: est. 1RM, top weight, volume, reps, sets, max reps, RPE, distance and duration, by session, week or month.
+  - PR history for each exercise.
+  - Muscle groups: sets or volume per region (stacked) and per muscle.
+  - Compare up to 4 lifts, with an optional index-to-100 view.
+  - Every chart has a table view.
+- **Muscle groups**:
+  - Groups from the import file are used as-is.
+  - Otherwise they're suggested from the exercise name, using a built-in mapping first and keyword rules as the fallback.
+  - You can edit any exercise's groups, or accept all suggestions at once.
+  - Precedence: set by you > from import > suggested.
+- **Units**: default is lb and can be switched to kg. Each exercise can override the unit its weights were logged in. Totals across exercises are converted to the default unit.
+- **Assisted lifts** (e.g. `Pull Up (Assisted)`): lower weight counts as progress, and they're excluded from volume and e1RM.
+- **Warm-up sets** are excluded by default. You can include them in Settings.
+- **Data controls**: JSON backup/restore, clear all data (optionally keeping preferences and customized exercises), and a request for persistent storage.
+
+## Development
+
+```sh
+npm install
+npm run dev          # http://localhost:5173
+npm run check        # typecheck + lint + format check + tests
+npm test             # vitest
+npm run build        # static build in dist/
+```
+
+Tooling: Vite, TypeScript (strict), ESLint (typescript-eslint strict type-checked, react-hooks), Prettier, Vitest with jsdom and fake-indexeddb.
+
+## Deploy
+
+`.github/workflows/deploy.yml` builds and publishes to GitHub Pages on every push to `main`. Before the first run, enable it under **Settings → Pages → Source: GitHub Actions**. The app uses hash routing, so deep links work on static hosting.
+
+## Project layout
+
+```
+src/
+  domain/     pure logic: types, metrics, muscle mapping, dates, units
+  importers/  CSV parsing; one module per source, registered in importers/index.ts
+  db/         Dexie schema and repository (import, undo, dedupe, backup, clear)
+  components/ UI primitives and charts
+  pages/      routes
+```
+
+### Adding an import source
+
+1. Implement `Importer` (`detect(headers)` and `parse(rows)`) in `src/importers/<source>.ts`.
+2. Return normalized sets with stable `key`s. For `contentHash`, use `common.ts`.
+3. Register it in `src/importers/index.ts`.

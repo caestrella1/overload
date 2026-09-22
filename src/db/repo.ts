@@ -226,6 +226,11 @@ export async function updateExercise(
   await db.exercises.update(name, patch);
 }
 
+/** Accepts every suggested muscle assignment as the user's own. Returns how many changed. */
+export async function confirmSuggestedMuscles(db: OverloadDB): Promise<number> {
+  return db.exercises.where('muscleSource').equals('suggested').modify({ muscleSource: 'user' });
+}
+
 export async function clearAllData(db: OverloadDB, opts: { keepSettings: boolean }): Promise<void> {
   await db.transaction(
     'rw',
