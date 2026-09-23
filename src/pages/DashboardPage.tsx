@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { StackedBars } from '../components/charts';
 import { NoDataPage } from '../components/NoDataPage';
-import { BodyweightCard } from '../components/BodyweightCard';
 import { PrList } from '../components/PrList';
 import { StalledLifts } from '../components/StalledLifts';
 import { SampleDataBanner } from '../components/SampleDataBanner';
@@ -136,7 +135,7 @@ export default function DashboardPage() {
 
       <div className="grid items-start gap-6 lg:grid-cols-5">
         <Card
-          className="lg:col-span-3"
+          className="min-w-0 lg:col-span-3"
           title="Weekly training"
           subtitle={metric === 'volume' ? `Volume in ${unit}, assisted lifts excluded` : undefined}
           actions={
@@ -161,7 +160,11 @@ export default function DashboardPage() {
           />
         </Card>
 
-        <Card className="lg:col-span-2" title="Recent PRs" subtitle="Beats your previous best">
+        <Card
+          className="min-w-0 lg:col-span-2"
+          title="Recent PRs"
+          subtitle="Beats your previous best"
+        >
           <PrList
             prs={prs}
             limit={12}
@@ -171,16 +174,8 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <div className="mt-6 grid items-start gap-6 lg:grid-cols-5">
-        <div className="lg:col-span-3">
-          <StalledLifts
-            lifts={stalled}
-            unitFor={(name) => exerciseUnit(exercises.get(name), unit)}
-          />
-        </div>
-        <div className="lg:col-span-2">
-          <BodyweightCard />
-        </div>
+      <div className="mt-6">
+        <StalledLifts lifts={stalled} unitFor={(name) => exerciseUnit(exercises.get(name), unit)} />
       </div>
     </>
   );

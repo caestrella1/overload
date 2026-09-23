@@ -55,7 +55,7 @@ export function RisingMuscles({
                   }}
                   aria-pressed={isSelected}
                   className={cx(
-                    'focus-ring w-full rounded-xl border p-3 text-left transition-colors',
+                    'focus-ring w-full rounded-2xl border p-3 text-left transition-colors',
                     isSelected
                       ? 'border-accent bg-accent/5'
                       : 'border-border bg-surface-2 hover:border-accent/50',

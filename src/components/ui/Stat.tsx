@@ -16,7 +16,7 @@ export function StatTile({
   return (
     <div
       className={cx(
-        'rounded-xl',
+        'min-w-0 rounded-2xl',
         compact ? 'bg-surface-2 p-3' : 'border border-border bg-surface p-4',
       )}
     >

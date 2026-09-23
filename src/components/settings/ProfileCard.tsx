@@ -1,22 +1,23 @@
 import { useState } from 'react';
-import { db } from '../db/db';
-import { deleteBodyweight, saveBodyweight } from '../db/repo';
-import { bodyweightChange, type BodyweightEntry } from '../domain/bodyweight';
-import { formatDate, toLocalString } from '../domain/dates';
-import type { Unit } from '../domain/types';
-import { formatNumber } from '../domain/units';
-import { useBodyweights, useSettings } from '../hooks/useData';
-import { SERIES_COLORS } from '../lib/colors';
-import { TrendChart } from './charts';
-import { Button, Card, Muted, Segmented, TextInput } from './ui';
+import { db } from '../../db/db';
+import { deleteBodyweight, saveBodyweight } from '../../db/repo';
+import { bodyweightChange, type BodyweightEntry } from '../../domain/bodyweight';
+import { formatDate, toLocalString } from '../../domain/dates';
+import type { Unit } from '../../domain/types';
+import { formatNumber } from '../../domain/units';
+import { useBodyweights, useSettings } from '../../hooks/useData';
+import { SERIES_COLORS } from '../../lib/colors';
+import { TrendChart } from '../charts';
+import { Button, Card, Muted, Segmented, TextInput } from '../ui';
 
 const today = () => toLocalString(new Date()).slice(0, 10);
 
 /**
- * Logging bodyweight is what lets pull-ups, dips and assisted work report the load
- * actually moved, instead of only the plate hanging off you.
+ * Bodyweight belongs to you rather than to any workout, so it lives in settings. It is
+ * what lets pull-ups, dips and assisted work report the load actually moved, instead of
+ * only the plate hanging off you.
  */
-export function BodyweightCard() {
+export function ProfileCard() {
   const log = useBodyweights();
   const settings = useSettings();
   const [date, setDate] = useState(today);
@@ -38,8 +39,8 @@ export function BodyweightCard() {
 
   return (
     <Card
-      title="Bodyweight"
-      subtitle="Used for pull-ups, dips and assisted lifts, so their charts show the weight you actually moved."
+      title="Profile"
+      subtitle="Your bodyweight over time. Used for pull-ups, dips and assisted lifts, so their charts show the weight you actually moved."
       actions={
         summary && (
           <span className="tabular text-sm text-ink-2">

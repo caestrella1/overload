@@ -62,7 +62,7 @@ export function MuscleEditor({
               }}
               aria-label={`${m}: ${role}`}
               className={cx(
-                'rounded-md border px-2 py-1 text-xs font-medium transition-colors',
+                'rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
                 role === 'primary' && 'border-accent bg-accent text-accent-ink',
                 role === 'secondary' && 'border-accent bg-accent/10 text-ink',
                 role === 'none' && 'border-border text-ink-2 hover:bg-surface-2',

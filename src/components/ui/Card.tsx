@@ -15,7 +15,9 @@ export function Card({
   className,
 }: HeaderProps & { children: ReactNode; className?: string }) {
   return (
-    <section className={cx('rounded-xl border border-border bg-surface p-4 sm:p-5', className)}>
+    <section
+      className={cx('min-w-0 rounded-2xl border border-border bg-surface p-4 sm:p-5', className)}
+    >
       {(title ?? actions) && (
         <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">

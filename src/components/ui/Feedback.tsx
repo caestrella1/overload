@@ -73,7 +73,7 @@ export function Callout({
   return (
     <div
       role={tone === 'critical' || tone === 'warning' ? 'alert' : 'status'}
-      className={cx('flex gap-3 rounded-lg border p-3 text-sm', t.box, className)}
+      className={cx('flex gap-3 rounded-xl border p-3 text-sm', t.box, className)}
     >
       <StatusIcon tone={tone} className={cx('mt-0.5', t.icon)} />
       <div className="min-w-0">
@@ -86,7 +86,7 @@ export function Callout({
 
 export function EmptyState({ title, children }: { title: string; children?: ReactNode }) {
   return (
-    <div className="rounded-xl border border-dashed border-border bg-surface p-10 text-center">
+    <div className="rounded-2xl border border-dashed border-border bg-surface p-10 text-center">
       <h2 className="text-base font-semibold text-ink">{title}</h2>
       {children && <div className="mt-2 text-sm text-ink-2">{children}</div>}
     </div>

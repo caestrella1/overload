@@ -128,7 +128,8 @@ body {
 }
 
 @utility field {
-  border-radius: var(--radius-lg);
+  /* Controls are pill-shaped to match the buttons and segmented controls. */
+  border-radius: var(--radius-full);
   border: 1px solid var(--border);
   background: var(--surface);
   padding: calc(var(--spacing) * 1.5) calc(var(--spacing) * 3);
