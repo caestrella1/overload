@@ -1,0 +1,72 @@
+import Dexie, { type EntityTable } from 'dexie';
+import { isBodyweightName, type BodyweightEntry } from '../domain/bodyweight';
+import type { ExerciseAlias } from '../domain/types';
+import type { MappingProfile } from '../importers/mapping';
+import type { Exercise, ImportRecord, Workout, WorkoutSet } from '../domain/types';
+
+export interface MetaRow {
+  key: string;
+  value: unknown;
+}
+
+/** A set removed by a sync import, kept so that import can be undone. */
+export interface RemovalRow {
+  id?: number;
+  importId: number;
+  set: WorkoutSet;
+  /** Carried on one row per workout, so a workout that loses every set comes back too. */
+  workout?: Workout;
+}
+
+export type OverloadDB = Dexie & {
+  sets: EntityTable<WorkoutSet, 'id'>;
+  workouts: EntityTable<Workout, 'key'>;
+  exercises: EntityTable<Exercise, 'name'>;
+  imports: EntityTable<ImportRecord, 'id'>;
+  removals: EntityTable<RemovalRow, 'id'>;
+  profiles: EntityTable<MappingProfile, 'id'>;
+  bodyweights: EntityTable<BodyweightEntry, 'id'>;
+  aliases: EntityTable<ExerciseAlias, 'from'>;
+  meta: EntityTable<MetaRow, 'key'>;
+};
+
+export function createDb(name = 'overload'): OverloadDB {
+  const db = new Dexie(name) as OverloadDB;
+  db.version(1).stores({
+    sets: '++id, &key, workoutKey, exercise, date, importId',
+    workouts: '&key, date, importId',
+    exercises: '&name, muscleSource',
+    imports: '++id, fileHash, importedAt',
+    meta: '&key',
+  });
+  // v2 adds sync imports, which can remove sets; removals make those undoable.
+  db.version(2)
+    .stores({ removals: '++id, importId' })
+    .upgrade((tx) =>
+      tx
+        .table<ImportRecord>('imports')
+        .toCollection()
+        .modify((r) => {
+          r.removed = 0;
+        }),
+    );
+  // v3 adds saved column mappings for CSV layouts the app has no built-in importer for.
+  db.version(3).stores({ profiles: '++id, &signature, lastUsedAt' });
+  // v4 logs bodyweight, so lifts that carry it can report the load actually moved.
+  db.version(4)
+    .stores({ bodyweights: '++id, &date' })
+    .upgrade((tx) =>
+      tx
+        .table<Exercise>('exercises')
+        .toCollection()
+        .modify((e) => {
+          e.bodyweight = isBodyweightName(e.name);
+          e.bodyweightFactor = 1;
+        }),
+    );
+  // v5 remembers renamed and merged exercises, so later imports follow the rename.
+  db.version(5).stores({ aliases: '&from, to' });
+  return db;
+}
+
+export const db = createDb();
