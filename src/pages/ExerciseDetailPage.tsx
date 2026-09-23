@@ -35,7 +35,7 @@ import { exerciseUnit, formatNumber } from '../domain/units';
 import { useChartControls } from '../hooks/useChartControls';
 import { useBodyweights, useExerciseSets, useExercises, useSettings } from '../hooks/useData';
 import { usePref } from '../hooks/usePref';
-import { SERIES_COLORS } from '../lib/colors';
+import { CHART_PRIMARY } from '../lib/colors';
 
 /** Best session by top weight: heaviest normally, least assistance for assisted lifts. */
 function bestByWeight(stats: SessionStat[], assisted: boolean): SessionStat | null {
@@ -152,7 +152,7 @@ export default function ExerciseDetailPage() {
           <MetricPicker value={metric} metrics={metrics} onChange={setMetric} />
         </div>
         <TrendChart
-          series={[{ id: 'v', label: def.label, color: SERIES_COLORS[0] ?? '', points }]}
+          series={[{ id: 'v', label: def.label, color: CHART_PRIMARY, points }]}
           bucket={bucket}
           format={(v) => formatMetric(v, metric, unit, true)}
         />

@@ -6,7 +6,7 @@ import { formatDate, toLocalString } from '../../domain/dates';
 import type { Unit } from '../../domain/types';
 import { formatNumber } from '../../domain/units';
 import { useBodyweights, useSettings } from '../../hooks/useData';
-import { SERIES_COLORS } from '../../lib/colors';
+import { CHART_PRIMARY } from '../../lib/colors';
 import { TrendChart } from '../charts';
 import { Button, Card, Muted, Segmented, TextInput } from '../ui';
 
@@ -108,7 +108,7 @@ export function ProfileCard() {
             {
               id: 'bw',
               label: 'Bodyweight',
-              color: SERIES_COLORS[0] ?? '',
+              color: CHART_PRIMARY,
               points,
             },
           ]}

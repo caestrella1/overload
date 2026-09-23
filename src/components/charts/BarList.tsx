@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { CHART_PRIMARY } from '../../lib/colors';
 import { cx } from '../../lib/cx';
 import type { ValueFormat } from './types';
 
@@ -45,7 +46,7 @@ export function BarList({
                 style={{
                   width: `${max ? (it.value / max) * 100 : 0}%`,
                   minWidth: it.value > 0 ? 2 : 0,
-                  background: 'var(--series-1)',
+                  background: CHART_PRIMARY,
                   opacity: anySelected && !selected.includes(it.id) ? 0.45 : 1,
                 }}
               />

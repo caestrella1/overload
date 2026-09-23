@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:themes": "node scripts/build-themes.mjs",
     "build:demo": "tsc -b && VITE_DEMO=1 VITE_BASE=./ vite build --outDir dist-demo",
     "preview": "vite preview",
     "typecheck": "tsc -b",

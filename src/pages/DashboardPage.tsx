@@ -34,7 +34,7 @@ import {
   useWorkouts,
 } from '../hooks/useData';
 import { usePref } from '../hooks/usePref';
-import { SERIES_COLORS } from '../lib/colors';
+import { CHART_PRIMARY } from '../lib/colors';
 
 type TotalMetric = 'volume' | 'sets' | 'workouts';
 
@@ -162,7 +162,7 @@ export default function DashboardPage() {
         >
           <StackedBars
             rows={weekly.map((w) => ({ period: w.period, value: w[metric] }))}
-            keys={[{ id: 'value', label: 'Total', color: SERIES_COLORS[0] ?? '' }]}
+            keys={[{ id: 'value', label: 'Total', color: CHART_PRIMARY }]}
             bucket="week"
             format={(v) => formatCompact(v)}
             height={260}

@@ -73,6 +73,12 @@ src/
 
 The catalogue is a **classification** source only. Identity always stays with the name the import used, because name matching is not reliable enough to decide which sets belong together — a wrong match would silently fuse two lifts' histories.
 
+### Themes
+
+`npm run build:themes` regenerates `src/themes.css` — the accent and the tinted neutrals for each of the seven themes. Every theme is a single OKLCH hue: the accent is that hue at full chroma, the surfaces and text are the same hue at a whisper of chroma, so the whole page carries the tint. Lightness is not fixed across hues (a yellow and a blue of equal OKLCH lightness differ wildly in luminance), so each value is searched until it clears its WCAG target against the surface it sits on. The script prints a contrast report and exits non-zero if any theme falls short, so `src/themes.css` is never hand-edited.
+
+Chart series colours are deliberately not themed: they encode data identity and are validated for colour-vision deficiency as a set. Only `--chart-primary`, used where a chart draws a single series, follows the accent.
+
 ### Adding an import source
 
 Most formats need no code: drop the CSV in and map its columns. Write an importer only for a format worth recognising automatically.

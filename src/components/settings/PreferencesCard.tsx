@@ -2,12 +2,14 @@ import { db } from '../../db/db';
 import { saveSettings } from '../../db/repo';
 import type { E1rmFormula, Unit } from '../../domain/types';
 import { useSettings } from '../../hooks/useData';
+import { ACCENTS, useAccent } from '../../hooks/useAccent';
 import { useTheme, type ThemePref } from '../../hooks/useTheme';
-import { Card, Checkbox, FieldRow, Segmented } from '../ui';
+import { Card, Checkbox, FieldRow, Segmented, SwatchPicker } from '../ui';
 
 export function PreferencesCard() {
   const settings = useSettings();
   const [theme, setTheme] = useTheme();
+  const [accent, setAccent] = useAccent();
   return (
     <Card title="Preferences">
       <FieldRow
@@ -71,6 +73,18 @@ export function PreferencesCard() {
             { id: 'light', label: 'Light' },
             { id: 'dark', label: 'Dark' },
           ]}
+        />
+      </FieldRow>
+      <FieldRow label="Color" hint="Tints surfaces, controls and single-series charts.">
+        <SwatchPicker
+          label="Color"
+          value={accent}
+          onChange={setAccent}
+          options={ACCENTS.map((id) => ({
+            id,
+            label: id.charAt(0).toUpperCase() + id.slice(1),
+            color: `var(--accent-${id})`,
+          }))}
         />
       </FieldRow>
     </Card>

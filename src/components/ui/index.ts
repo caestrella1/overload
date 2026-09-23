@@ -17,4 +17,5 @@ export { Checkbox, FieldRow, Select, TextInput } from './Field';
 export { FileButton, FileDropzone } from './FilePicker';
 export { Segmented, type Option } from './Segmented';
 export { StatGrid, StatTile } from './Stat';
+export { SwatchPicker, type Swatch } from './SwatchPicker';
 export { TextLink } from './TextLink';

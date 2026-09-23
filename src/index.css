@@ -1,19 +1,10 @@
 @import 'tailwindcss';
+/* Accent + tinted neutrals for every theme; regenerate with scripts/build-themes.mjs. */
+@import './themes.css';
 
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
 :root {
-  color-scheme: light;
-  --page: #f4f4f1;
-  --surface: #fcfcfb;
-  --surface-2: #f0efec;
-  --border: #e2e1dc;
-  --text-primary: #0b0b0b;
-  --text-secondary: #52514e;
-  --text-muted: #7a7974;
-  --accent: #2a78d6;
-  --accent-ink: #ffffff;
-  --grid: #e8e7e2;
   --good: #008300;
   --warning: #9a6700;
   --critical: #c62828;
@@ -34,16 +25,6 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    color-scheme: dark;
-    --page: #121211;
-    --surface: #1a1a19;
-    --surface-2: #242423;
-    --border: #33332f;
-    --text-primary: #ffffff;
-    --text-secondary: #c3c2b7;
-    --text-muted: #8f8e86;
-    --accent: #3987e5;
-    --grid: #2c2c29;
     --good: #3fb950;
     --warning: #d29922;
     --critical: #f85149;
@@ -64,16 +45,6 @@
 }
 
 :root[data-theme='dark'] {
-  color-scheme: dark;
-  --page: #121211;
-  --surface: #1a1a19;
-  --surface-2: #242423;
-  --border: #33332f;
-  --text-primary: #ffffff;
-  --text-secondary: #c3c2b7;
-  --text-muted: #8f8e86;
-  --accent: #3987e5;
-  --grid: #2c2c29;
   --good: #3fb950;
   --warning: #d29922;
   --critical: #f85149;
@@ -102,6 +73,7 @@
   --color-ink-3: var(--text-muted);
   --color-accent: var(--accent);
   --color-accent-ink: var(--accent-ink);
+  --color-chart: var(--chart-primary);
   --color-good: var(--good);
   --color-warning: var(--warning);
   --color-critical: var(--critical);
