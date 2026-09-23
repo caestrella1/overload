@@ -1,6 +1,7 @@
 export { Button } from './Button';
 export { buttonClasses, type ButtonVariant } from './buttonClasses';
 export { Card, PageHeader } from './Card';
+export { LinkButton } from './LinkButton';
 export { ConfirmDialog } from './ConfirmDialog';
 export { DataTable, type Column } from './DataTable';
 export {

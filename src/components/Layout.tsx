@@ -9,7 +9,6 @@ const NAV = [
   { to: '/exercises', label: 'Exercises' },
   { to: '/muscles', label: 'Muscles' },
   { to: '/compare', label: 'Compare' },
-  { to: '/import', label: 'Import' },
   { to: '/settings', label: 'Settings' },
 ];
 

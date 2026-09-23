@@ -3,6 +3,7 @@ import { BackupCard } from '../components/settings/BackupCard';
 import { ClearDataCard } from '../components/settings/ClearDataCard';
 import { DuplicatesCard } from '../components/settings/DuplicatesCard';
 import { FormatsCard } from '../components/settings/FormatsCard';
+import { ImportCard } from '../components/settings/ImportCard';
 import { PreferencesCard } from '../components/settings/PreferencesCard';
 import { ProfileCard } from '../components/settings/ProfileCard';
 import { StorageCard } from '../components/settings/StorageCard';
@@ -21,6 +22,7 @@ export default function SettingsPage() {
           <PreferencesCard />
         </div>
         <div className="min-w-0 space-y-6">
+          <ImportCard />
           <StorageCard />
           <FormatsCard />
           <AliasesCard />

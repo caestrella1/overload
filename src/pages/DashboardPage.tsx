@@ -8,6 +8,7 @@ import { RangeControls } from '../components/RangeControls';
 import {
   Callout,
   Card,
+  LinkButton,
   PageHeader,
   Segmented,
   StatGrid,
@@ -94,7 +95,15 @@ export default function DashboardPage() {
 
   return (
     <>
-      <PageHeader title="Dashboard" actions={<RangeControls range={range} onRange={setRange} />} />
+      <PageHeader
+        title="Dashboard"
+        actions={
+          <>
+            <RangeControls range={range} onRange={setRange} />
+            <LinkButton to="/import">Import</LinkButton>
+          </>
+        }
+      />
 
       <SampleDataBanner />
       {review > 0 && (
