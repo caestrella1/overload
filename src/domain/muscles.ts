@@ -205,8 +205,9 @@ const KNOWN: Record<string, MuscleAssignment> = {
 /** Keyword fallbacks, checked in order; first match wins. */
 const RULES: [RegExp, MuscleAssignment][] = [
   [/incline.*(press|fly)/, m(['Chest'], ['Shoulders', 'Triceps'])],
+  [/\bfly|crossover|pec deck/, m(['Chest'], ['Shoulders'])],
   [/close.?grip.*bench/, m(['Triceps'], ['Chest'])],
-  [/bench|chest|pec|push.?up|crossover|\bfly/, m(['Chest'], ['Triceps', 'Shoulders'])],
+  [/bench|chest|pec|push.?up/, m(['Chest'], ['Triceps', 'Shoulders'])],
   [/overhead|shoulder|military|arnold|lateral|front raise|delt/, m(['Shoulders'], ['Triceps'])],
   [/face pull|reverse fly|rear/, m(['Shoulders'], ['Upper Back'])],
   [/shrug/, m(['Traps'])],

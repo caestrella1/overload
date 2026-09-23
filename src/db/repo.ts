@@ -16,11 +16,12 @@ import {
   type ExistingSetRef,
   type ImportPlan,
 } from '../importers/plan';
+import type { MappingProfile } from '../importers/mapping';
 import type { ParseResult, ParsedExercise } from '../importers/types';
 import type { OverloadDB, RemovalRow } from './db';
 
 const SETTINGS_KEY = 'settings';
-export const BACKUP_VERSION = 2;
+export const BACKUP_VERSION = 3;
 
 export async function loadSettings(db: OverloadDB): Promise<Settings> {
   const row = await db.meta.get(SETTINGS_KEY);
@@ -338,6 +339,38 @@ export async function updateExercise(
   await db.exercises.update(name, patch);
 }
 
+export async function findProfile(
+  db: OverloadDB,
+  signature: string,
+): Promise<MappingProfile | null> {
+  return (await db.profiles.where('signature').equals(signature).first()) ?? null;
+}
+
+export function listProfiles(db: OverloadDB): Promise<MappingProfile[]> {
+  return db.profiles.orderBy('lastUsedAt').reverse().toArray();
+}
+
+/** Saves a mapping, replacing any earlier one for the same CSV layout. */
+export async function saveProfile(
+  db: OverloadDB,
+  profile: Omit<MappingProfile, 'id' | 'createdAt' | 'lastUsedAt'>,
+): Promise<MappingProfile> {
+  const now = new Date().toISOString();
+  const existing = await findProfile(db, profile.signature);
+  const saved: MappingProfile = {
+    ...profile,
+    id: existing?.id,
+    createdAt: existing?.createdAt ?? now,
+    lastUsedAt: now,
+  };
+  saved.id = Number(await db.profiles.put(saved));
+  return saved;
+}
+
+export async function deleteProfile(db: OverloadDB, id: number): Promise<void> {
+  await db.profiles.delete(id);
+}
+
 /** Accepts every suggested muscle assignment as the user's own. Returns how many changed. */
 export async function confirmSuggestedMuscles(db: OverloadDB): Promise<number> {
   return db.exercises.where('muscleSource').equals('suggested').modify({ muscleSource: 'user' });
@@ -346,7 +379,7 @@ export async function confirmSuggestedMuscles(db: OverloadDB): Promise<number> {
 export async function clearAllData(db: OverloadDB, opts: { keepSettings: boolean }): Promise<void> {
   await db.transaction(
     'rw',
-    [db.sets, db.workouts, db.exercises, db.imports, db.removals, db.meta],
+    [db.sets, db.workouts, db.exercises, db.imports, db.removals, db.profiles, db.meta],
     async () => {
       await Promise.all([
         db.sets.clear(),
@@ -356,9 +389,10 @@ export async function clearAllData(db: OverloadDB, opts: { keepSettings: boolean
       ]);
       if (opts.keepSettings) {
         // Exercise settings (muscles, units) are configuration; keep the edited ones.
+        // Saved CSV mappings are configuration too, so they stay either way here.
         await db.exercises.filter((e) => e.muscleSource !== 'user' && e.unit == null).delete();
       } else {
-        await Promise.all([db.exercises.clear(), db.meta.clear()]);
+        await Promise.all([db.exercises.clear(), db.profiles.clear(), db.meta.clear()]);
       }
     },
   );
@@ -375,16 +409,19 @@ export interface Backup {
   imports: ImportRecord[];
   /** Sets removed by sync imports, so those imports stay undoable. Absent in v1 backups. */
   removals?: RemovalRow[];
+  /** Saved CSV column mappings. Absent before v3. */
+  profiles?: MappingProfile[];
 }
 
 export async function exportBackup(db: OverloadDB): Promise<Backup> {
-  const [settings, exercises, workouts, sets, imports, removals] = await Promise.all([
+  const [settings, exercises, workouts, sets, imports, removals, profiles] = await Promise.all([
     loadSettings(db),
     db.exercises.toArray(),
     db.workouts.toArray(),
     db.sets.toArray(),
     db.imports.toArray(),
     db.removals.toArray(),
+    db.profiles.toArray(),
   ]);
   return {
     app: 'overload',
@@ -396,6 +433,7 @@ export async function exportBackup(db: OverloadDB): Promise<Backup> {
     sets,
     imports,
     removals,
+    profiles,
   };
 }
 
@@ -419,7 +457,7 @@ export async function restoreBackup(db: OverloadDB, backup: Backup): Promise<voi
   }
   await db.transaction(
     'rw',
-    [db.sets, db.workouts, db.exercises, db.imports, db.removals, db.meta],
+    [db.sets, db.workouts, db.exercises, db.imports, db.removals, db.profiles, db.meta],
     async () => {
       await Promise.all([
         db.sets.clear(),
@@ -427,6 +465,7 @@ export async function restoreBackup(db: OverloadDB, backup: Backup): Promise<voi
         db.exercises.clear(),
         db.imports.clear(),
         db.removals.clear(),
+        db.profiles.clear(),
         db.meta.clear(),
       ]);
       await db.meta.put({ key: SETTINGS_KEY, value: { ...DEFAULT_SETTINGS, ...backup.settings } });
@@ -435,6 +474,7 @@ export async function restoreBackup(db: OverloadDB, backup: Backup): Promise<voi
       await db.imports.bulkPut(backup.imports);
       await db.sets.bulkPut(backup.sets);
       await db.removals.bulkPut(backup.removals ?? []);
+      await db.profiles.bulkPut(backup.profiles ?? []);
     },
   );
 }

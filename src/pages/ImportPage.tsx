@@ -1,8 +1,10 @@
 import { ImportHistory } from '../components/import/ImportHistory';
 import { ImportPreview } from '../components/import/ImportPreview';
+import { MappingStep } from '../components/import/MappingStep';
 import { Button, Callout, Card, FileDropzone, PageHeader, TextLink } from '../components/ui';
 import type { ImportRecord } from '../domain/types';
 import { formatNumber } from '../domain/units';
+import { useSettings } from '../hooks/useData';
 import { useImportFlow } from '../hooks/useImportFlow';
 import { IMPORTERS } from '../importers';
 import { SampleDataBanner } from '../components/SampleDataBanner';
@@ -18,7 +20,10 @@ function importSummary(record: ImportRecord): string {
 }
 
 export default function ImportPage() {
-  const { state, load, loadFile, commit, reset } = useImportFlow();
+  const settings = useSettings();
+  const { state, load, loadFile, updateDraft, applyMapping, commit, reset } = useImportFlow(
+    settings.defaultUnit,
+  );
 
   const loadSample = async () => {
     // Loaded on demand so the generator isn't in the main bundle.
@@ -30,7 +35,7 @@ export default function ImportPage() {
     <>
       <PageHeader
         title="Import"
-        subtitle={`Supported: ${IMPORTERS.map((i) => i.label).join(', ')} CSV export. Files are processed in your browser and never uploaded.`}
+        subtitle={`${IMPORTERS.map((i) => i.label).join(', ')} exports import straight away; any other CSV can be mapped column by column. Files are processed in your browser and never uploaded.`}
       />
 
       <SampleDataBanner />
@@ -59,6 +64,15 @@ export default function ImportPage() {
         <Callout className="mb-6" tone="good" title="Import complete">
           {importSummary(state.record)} <TextLink to="/">Go to dashboard</TextLink>
         </Callout>
+      )}
+      {state.step === 'mapping' && (
+        <MappingStep
+          key={state.fileHash}
+          state={state}
+          onChange={updateDraft}
+          onApply={() => void applyMapping(state)}
+          onCancel={reset}
+        />
       )}
       {state.step === 'preview' && (
         <ImportPreview

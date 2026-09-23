@@ -10,10 +10,13 @@ import {
   countRemovals,
   exportBackup,
   findDuplicateSets,
+  findProfile,
+  listProfiles,
   loadSettings,
   previewImport,
   readFlag,
   restoreBackup,
+  saveProfile,
   saveSettings,
   writeFlag,
   undoImport,
@@ -274,5 +277,40 @@ describe('meta flags', () => {
     await saveSettings(db, { defaultUnit: 'kg' });
     expect(await readFlag(db, 'sampleRemoved')).toBe(true);
     expect((await loadSettings(db)).defaultUnit).toBe('kg');
+  });
+});
+
+describe('mapping profiles', () => {
+  const profile = {
+    name: 'Hevy',
+    signature: 'date|exercise|reps|weight',
+    map: { date: 'start_time', exercise: 'exercise_title' },
+    unit: 'kg' as const,
+    dateOrder: 'ymd' as const,
+  };
+
+  it('saves, finds and replaces by layout signature', async () => {
+    const saved = await saveProfile(db, profile);
+    expect(saved.id).toBeGreaterThan(0);
+    expect((await findProfile(db, profile.signature))?.name).toBe('Hevy');
+
+    const renamed = await saveProfile(db, { ...profile, name: 'Hevy export' });
+    expect(renamed.id).toBe(saved.id);
+    expect(renamed.createdAt).toBe(saved.createdAt);
+    expect(await db.profiles.count()).toBe(1);
+    expect(await findProfile(db, 'something else')).toBeNull();
+  });
+
+  it('survives a data clear but not a full reset, and round-trips in a backup', async () => {
+    await saveProfile(db, profile);
+    await clearAllData(db, { keepSettings: true });
+    expect(await db.profiles.count()).toBe(1);
+
+    const backup = await exportBackup(db);
+    await clearAllData(db, { keepSettings: false });
+    expect(await db.profiles.count()).toBe(0);
+
+    await restoreBackup(db, JSON.parse(JSON.stringify(backup)) as Backup);
+    expect((await listProfiles(db))[0]?.name).toBe('Hevy');
   });
 });

@@ -1,4 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie';
+import type { MappingProfile } from '../importers/mapping';
 import type { Exercise, ImportRecord, Workout, WorkoutSet } from '../domain/types';
 
 export interface MetaRow {
@@ -21,6 +22,7 @@ export type OverloadDB = Dexie & {
   exercises: EntityTable<Exercise, 'name'>;
   imports: EntityTable<ImportRecord, 'id'>;
   removals: EntityTable<RemovalRow, 'id'>;
+  profiles: EntityTable<MappingProfile, 'id'>;
   meta: EntityTable<MetaRow, 'key'>;
 };
 
@@ -44,6 +46,8 @@ export function createDb(name = 'overload'): OverloadDB {
           r.removed = 0;
         }),
     );
+  // v3 adds saved column mappings for CSV layouts the app has no built-in importer for.
+  db.version(3).stores({ profiles: '++id, &signature, lastUsedAt' });
   return db;
 }
 

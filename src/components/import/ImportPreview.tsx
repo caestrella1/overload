@@ -31,6 +31,7 @@ export function ImportPreview({
   const changed = plan.toUpdate.length;
   const removable = preview.sync.toRemove.length;
   const removing = sync ? removable : 0;
+  const mapped = state.mappedWith ? ` \u00b7 mapped as ${state.mappedWith}` : '';
   const incoming = plan.toAdd.length + (updateChanged ? changed : 0);
   const nothingToDo = !incoming && !removing;
   const range = preview.dateRange
@@ -41,7 +42,7 @@ export function ImportPreview({
     <Card
       className="mb-6"
       title={`Preview: ${fileName}`}
-      subtitle={`${formatNumber(parsed.rowCount, 0)} rows${range}`}
+      subtitle={`${formatNumber(parsed.rowCount, 0)} rows${range}${mapped}`}
     >
       <div className="space-y-3">
         {preview.sameFile && (

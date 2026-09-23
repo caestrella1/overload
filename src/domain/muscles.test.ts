@@ -24,3 +24,11 @@ describe('suggestMuscles', () => {
     expect(suggestMuscles('Bench Press (Barbell)')?.primary).toEqual(['Chest']);
   });
 });
+
+describe('fly variants', () => {
+  it('treat flies as chest work, not triceps', () => {
+    expect(suggestMuscles('Cable Fly')).toEqual({ primary: ['Chest'], secondary: ['Shoulders'] });
+    expect(suggestMuscles('Cable Crossover')?.primary).toEqual(['Chest']);
+    expect(suggestMuscles('Bench Press (Barbell)')?.secondary).toContain('Triceps');
+  });
+});
