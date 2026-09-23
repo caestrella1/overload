@@ -3,6 +3,7 @@ import { StackedBars } from '../components/charts';
 import { NoDataPage } from '../components/NoDataPage';
 import { BodyweightCard } from '../components/BodyweightCard';
 import { PrList } from '../components/PrList';
+import { StalledLifts } from '../components/StalledLifts';
 import { SampleDataBanner } from '../components/SampleDataBanner';
 import { RangeControls } from '../components/RangeControls';
 import {
@@ -14,8 +15,15 @@ import {
   StatTile,
   TextLink,
 } from '../components/ui';
-import { allPrs, inRange, periodTotals, type PeriodTotal } from '../domain/analysis';
+import {
+  allPrs,
+  inRange,
+  periodTotals,
+  statsByExercise,
+  type PeriodTotal,
+} from '../domain/analysis';
 import { formatDate, toLocalString, weekKey } from '../domain/dates';
+import { stalledLifts } from '../domain/stalled';
 import { exerciseUnit, formatCompact, formatNumber } from '../domain/units';
 import { useChartControls } from '../hooks/useChartControls';
 import {
@@ -55,6 +63,13 @@ export default function DashboardPage() {
   const allWeekly = useMemo(
     () => (sets && exercises ? periodTotals(sets, exercises, settings, 'week') : []),
     [sets, exercises, settings],
+  );
+  const stalled = useMemo(
+    () =>
+      sets && exercises
+        ? stalledLifts(statsByExercise(sets, exercises, settings, bodyweights))
+        : [],
+    [sets, exercises, settings, bodyweights],
   );
   const prs = useMemo(
     () => (sets && exercises ? allPrs(sets, exercises, settings, bodyweights) : []),
@@ -156,8 +171,16 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <div className="mt-6">
-        <BodyweightCard />
+      <div className="mt-6 grid items-start gap-6 lg:grid-cols-5">
+        <div className="lg:col-span-3">
+          <StalledLifts
+            lifts={stalled}
+            unitFor={(name) => exerciseUnit(exercises.get(name), unit)}
+          />
+        </div>
+        <div className="lg:col-span-2">
+          <BodyweightCard />
+        </div>
       </div>
     </>
   );

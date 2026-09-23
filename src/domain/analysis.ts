@@ -110,6 +110,20 @@ export function periodTotals(
     .map(({ keys, ...r }) => ({ ...r, workouts: keys.size }));
 }
 
+/** Session stats per exercise, with bodyweight applied where it matters. */
+export function statsByExercise(
+  sets: WorkoutSet[],
+  exercises: Map<string, Exercise>,
+  settings: Settings,
+  bodyweightLog: BodyweightEntry[] = [],
+): Map<string, SessionStat[]> {
+  const out = new Map<string, SessionStat[]>();
+  for (const [name, list] of groupByExercise(sets)) {
+    out.set(name, statsForExercise(list, exercises.get(name), settings, undefined, bodyweightLog));
+  }
+  return out;
+}
+
 export function availableMetrics(stats: SessionStat[]): MetricId[] {
   return METRICS.filter((m) => stats.some((s) => metricValue(s, m.id) != null)).map((m) => m.id);
 }

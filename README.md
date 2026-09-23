@@ -5,6 +5,7 @@ Track progressive overload from your lifting logs. It's a frontend-only React ap
 ## Features
 
 - **Import**: Strong CSV exports, both the current format and the older `;`-delimited one with unit columns. Parsing runs in the browser.
+- **Any other CSV**: a file the app doesn't recognise opens a column mapper instead of being rejected. Columns are guessed from their names, the day/month order is detected from the file's own dates, and the unit is read from the weight column when it names one. Everything is previewed against real rows before it's stored, and the mapping is saved for next time. One-row-per-workout layouts are detected and refused rather than imported wrongly.
 - **Dedupe**:
   - Every set gets an identity key (workout time + exercise + set label + occurrence) and a content hash. Re-importing a full export adds only new sets.
   - Sets edited in Strong since your last import are detected, and you choose whether to replace the stored values.
@@ -28,9 +29,13 @@ Track progressive overload from your lifting logs. It's a frontend-only React ap
   - You can edit any exercise's groups, or accept all suggestions at once.
   - Precedence: set by you > from import > suggested.
 - **Units**: default is lb and can be switched to kg. Each exercise can override the unit its weights were logged in. Totals across exercises are converted to the default unit.
-- **Assisted lifts** (e.g. `Pull Up (Assisted)`): lower weight counts as progress, and they're excluded from volume and e1RM.
+- **Bodyweight**: log it on the dashboard, and lifts that carry your weight (pull-ups, dips, push-ups) report the load actually moved — bodyweight times the share the movement carries, plus what you added, or minus the assistance taken off. Each set uses the nearest earlier entry.
+- **Assisted lifts** (e.g. `Pull Up (Assisted)`): with no bodyweight logged, lower weight counts as progress and they're left out of volume and e1RM. Once bodyweight is logged they become ordinary loads.
+- **Rename and merge exercises**: renaming onto an existing name merges the two histories, re-keying sets so nothing collides. The old name is remembered, so later imports follow the rename.
+- **Not moving lately**: lifts still in the rotation with no new estimated 1RM in over six weeks.
 - **Warm-up sets** are excluded by default. You can include them in Settings.
 - **Data controls**: JSON backup/restore, clear all data (optionally keeping preferences and customized exercises), and a request for persistent storage.
+- **Installable**: ships as a PWA, so it can be installed on a phone and used offline in the gym.
 
 ## Development
 
@@ -61,8 +66,10 @@ src/
 
 ### Adding an import source
 
+Most formats need no code: drop the CSV in and map its columns. Write an importer only for a format worth recognising automatically.
+
 1. Implement `Importer` (`detect(headers)` and `parse(rows)`) in `src/importers/<source>.ts`.
-2. Return normalized sets with stable `key`s. For `contentHash`, use `common.ts`.
+2. Build set keys with `nextKey` from `src/domain/identity.ts`, and hash values with `contentHash` from `common.ts`.
 3. Register it in `src/importers/index.ts`.
 
 ## Import model
