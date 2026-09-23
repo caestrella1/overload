@@ -1,8 +1,8 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { TrendChart } from '../components/charts';
 import { ExerciseReference } from '../components/exercise/ExerciseReference';
-import { ExerciseSettingsCard } from '../components/exercise/ExerciseSettingsCard';
+import { ExerciseSettingsForm } from '../components/exercise/ExerciseSettingsForm';
 import { SessionHistory } from '../components/exercise/SessionHistory';
 import { MetricPicker } from '../components/MetricPicker';
 import { MuscleChips, MuscleSourceBadge } from '../components/MuscleChips';
@@ -10,8 +10,11 @@ import { PrList } from '../components/PrList';
 import { RangeControls } from '../components/RangeControls';
 import {
   Badge,
+  Breadcrumbs,
+  Button,
   Card,
   EmptyState,
+  Modal,
   PageHeader,
   StatGrid,
   StatTile,
@@ -24,6 +27,7 @@ import {
   inRange,
   statsForExercise,
 } from '../domain/analysis';
+import { catalogReferenceFor } from '../domain/catalog/lookup';
 import { formatDate } from '../domain/dates';
 import {
   bucketSeries,
@@ -59,6 +63,7 @@ export default function ExerciseDetailPage() {
   const settings = useSettings();
   const bodyweights = useBodyweights();
   const [metricPref, setMetric] = usePref<MetricId>('exercise.metric', 'e1rm');
+  const [editing, setEditing] = useState(false);
   const { range, setRange, bucket, setBucket, start } = useChartControls('exercise', {
     range: 'all',
     bucket: 'session',
@@ -94,10 +99,15 @@ export default function ExerciseDetailPage() {
   const best = bestByWeight(stats, assisted);
   const last = stats[stats.length - 1];
   const def = METRIC_BY_ID[metric];
+  // Without a catalogue match there is no second card, so PR history takes the full row.
+  const hasReference = catalogReferenceFor(ex) !== null;
 
   return (
     <>
       <PageHeader
+        breadcrumbs={
+          <Breadcrumbs items={[{ label: 'Exercises', to: '/exercises' }, { label: ex.name }]} />
+        }
         title={ex.name}
         subtitle={
           <span className="flex flex-wrap items-center gap-2">
@@ -109,11 +119,31 @@ export default function ExerciseDetailPage() {
           </span>
         }
         actions={
-          <TextLink to="/exercises" subtle className="text-sm font-normal text-ink-2">
-            ← All exercises
-          </TextLink>
+          <Button
+            onClick={() => {
+              setEditing(true);
+            }}
+          >
+            Exercise settings
+          </Button>
         }
       />
+
+      <Modal
+        open={editing}
+        title="Exercise settings"
+        onClose={() => {
+          setEditing(false);
+        }}
+      >
+        <ExerciseSettingsForm
+          exercise={ex}
+          defaultUnit={settings.defaultUnit}
+          hasBodyweightLog={bodyweights.length > 0}
+          names={[...exercises.keys()]}
+          setCount={sets.length}
+        />
+      </Modal>
 
       <StatGrid className="mb-6">
         <StatTile
@@ -163,23 +193,18 @@ export default function ExerciseDetailPage() {
       </Card>
 
       <div className="mb-6 grid items-start gap-6 lg:grid-cols-2">
-        <Card title="PR history" subtitle="Each time you beat a previous best">
+        <Card
+          title="PR history"
+          subtitle="Each time you beat a previous best"
+          className={hasReference ? undefined : 'lg:col-span-2'}
+        >
           <PrList
             prs={prs}
             unitFor={() => unit}
             className="max-h-96 divide-y divide-border overflow-auto"
           />
         </Card>
-        <div className="grid min-w-0 gap-6">
-          <ExerciseReference exercise={ex} />
-          <ExerciseSettingsCard
-            exercise={ex}
-            defaultUnit={settings.defaultUnit}
-            hasBodyweightLog={bodyweights.length > 0}
-            names={[...exercises.keys()]}
-            setCount={sets.length}
-          />
-        </div>
+        <ExerciseReference exercise={ex} />
       </div>
 
       <Card title="History" subtitle={`${stats.length} sessions, newest first`}>

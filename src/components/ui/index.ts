@@ -1,5 +1,6 @@
 export { Button } from './Button';
 export { buttonClasses, type ButtonVariant } from './buttonClasses';
+export { Breadcrumbs, type Crumb } from './Breadcrumbs';
 export { Card, PageHeader } from './Card';
 export { LinkButton } from './LinkButton';
 export { ConfirmDialog } from './ConfirmDialog';
@@ -16,6 +17,7 @@ export {
 } from './Feedback';
 export { Checkbox, FieldRow, Select, TextInput } from './Field';
 export { FileButton, FileDropzone } from './FilePicker';
+export { Modal } from './Modal';
 export { Segmented, type Option } from './Segmented';
 export { StatGrid, StatTile } from './Stat';
 export { SwatchPicker, type Swatch } from './SwatchPicker';

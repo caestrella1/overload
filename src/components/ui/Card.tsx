@@ -32,10 +32,16 @@ export function Card({
   );
 }
 
-export function PageHeader({ title, subtitle, actions }: HeaderProps) {
+export function PageHeader({
+  title,
+  subtitle,
+  actions,
+  breadcrumbs,
+}: HeaderProps & { breadcrumbs?: ReactNode }) {
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div className="min-w-0">
+        {breadcrumbs && <div className="mb-1">{breadcrumbs}</div>}
         <h1 className="text-2xl font-semibold tracking-tight text-ink">{title}</h1>
         {subtitle && <div className="mt-1 text-sm text-ink-2">{subtitle}</div>}
       </div>

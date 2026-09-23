@@ -1,13 +1,12 @@
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ExerciseLink } from '../components/ExerciseLink';
-import { MuscleChips, MuscleSourceBadge } from '../components/MuscleChips';
+import { ExerciseCard } from '../components/exercise/ExerciseCard';
 import { NoDataPage } from '../components/NoDataPage';
 import {
   Button,
   Card,
   ConfirmDialog,
-  DataTable,
+  EmptyState,
   PageHeader,
   Select,
   TextInput,
@@ -15,7 +14,6 @@ import {
 import { db } from '../db/db';
 import { confirmSuggestedMuscles } from '../db/repo';
 import { groupByExercise, statsForExercise } from '../domain/analysis';
-import { formatDate } from '../domain/dates';
 import { MUSCLE_GROUPS } from '../domain/muscles';
 import type { Exercise, MuscleGroup } from '../domain/types';
 import { exerciseUnit, formatNumber } from '../domain/units';
@@ -118,8 +116,8 @@ export default function ExercisesPage() {
         {unsure > 0 && ` The other ${unsure} are left alone, since the app is not sure about them.`}
       </ConfirmDialog>
 
-      <Card>
-        <div className="mb-4 flex flex-wrap items-center gap-2">
+      <Card className="mb-6">
+        <div className="flex flex-wrap items-center gap-2">
           <TextInput
             type="search"
             label="Search exercises"
@@ -162,49 +160,26 @@ export default function ExercisesPage() {
             ]}
           />
         </div>
-
-        <DataTable
-          minWidth={640}
-          rows={visible}
-          rowKey={(r) => r.ex.name}
-          empty="No exercises match."
-          columns={[
-            { key: 'name', label: 'Exercise', render: (r) => <ExerciseLink name={r.ex.name} /> },
-            {
-              key: 'muscles',
-              label: 'Muscles',
-              render: (r) => (
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <MuscleChips muscles={r.ex.muscles} />
-                  {needsReview(r.ex) && (
-                    <MuscleSourceBadge
-                      source={r.ex.muscleSource}
-                      confidence={r.ex.suggestionConfidence}
-                    />
-                  )}
-                </div>
-              ),
-            },
-            { key: 'sessions', label: 'Sessions', align: 'right', render: (r) => r.sessions },
-            {
-              key: 'best',
-              label: 'Best e1RM',
-              align: 'right',
-              render: (r) =>
-                r.best != null
-                  ? `${formatNumber(r.best)} ${exerciseUnit(r.ex, settings.defaultUnit)}`
-                  : '–',
-            },
-            {
-              key: 'last',
-              label: 'Last done',
-              align: 'right',
-              className: 'text-ink-2',
-              render: (r) => (r.last ? formatDate(r.last) : '–'),
-            },
-          ]}
-        />
       </Card>
+
+      {visible.length ? (
+        <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {visible.map((r) => (
+            <li key={r.ex.name} className="flex min-w-0">
+              <ExerciseCard
+                exercise={r.ex}
+                sessions={r.sessions}
+                best={r.best}
+                last={r.last}
+                unit={exerciseUnit(r.ex, settings.defaultUnit)}
+                flagMuscles={needsReview(r.ex)}
+              />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <EmptyState title="No exercises match">Try a different search or filter.</EmptyState>
+      )}
     </>
   );
 }
