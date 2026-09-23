@@ -63,7 +63,7 @@ export function Layout() {
         </main>
 
         <nav
-          aria-label="Main"
+          aria-label="Main, bottom bar"
           className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-surface/95 pb-[env(safe-area-inset-bottom,0px)] backdrop-blur sm:hidden"
         >
           <ul className="flex">
