@@ -1,5 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie';
 import { isBodyweightName, type BodyweightEntry } from '../domain/bodyweight';
+import { suggestForName } from '../domain/suggest';
 import type { MappingProfile } from '../importers/mapping';
 import type {
   Exercise,
@@ -121,6 +122,27 @@ export function createDb(name = 'overload'): OverloadDB {
         e.origins = known ? [known] : [];
       });
   });
+  // v7 links exercises to the bundled catalogue and records how far to trust the
+  // suggestion. Existing guesses are re-run, since the catalogue knows more than the
+  // name rules did on their own.
+  db.version(7).upgrade((tx) =>
+    tx
+      .table<Exercise>('exercises')
+      .toCollection()
+      .modify((e) => {
+        e.catalogId ??= null;
+        e.suggestionConfidence ??= null;
+        e.suggestionReason ??= null;
+        if (e.muscleSource !== 'suggested' && e.muscleSource !== 'unassigned') return;
+        const suggestion = suggestForName(e.name);
+        if (!suggestion) return;
+        e.muscles = suggestion.muscles;
+        e.muscleSource = 'suggested';
+        e.catalogId = suggestion.catalogId;
+        e.suggestionConfidence = suggestion.confidence;
+        e.suggestionReason = suggestion.reason;
+      }),
+  );
   return db;
 }
 

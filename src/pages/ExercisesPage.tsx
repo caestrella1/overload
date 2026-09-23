@@ -80,7 +80,9 @@ export default function ExercisesPage() {
   if (!exercises.size) return <NoDataPage title="Exercises">to see your exercises.</NoDataPage>;
 
   const visible = rows.filter((r) => matches(r, query, muscle, status)).sort(SORTERS[sort]);
-  const suggested = [...exercises.values()].filter((e) => e.muscleSource === 'suggested').length;
+  const suggestions = [...exercises.values()].filter((e) => e.muscleSource === 'suggested');
+  const confident = suggestions.filter((e) => e.suggestionConfidence === 'high').length;
+  const unsure = suggestions.length - confident;
 
   return (
     <>
@@ -88,13 +90,13 @@ export default function ExercisesPage() {
         title="Exercises"
         subtitle={`${formatNumber(exercises.size, 0)} exercises`}
         actions={
-          suggested > 0 && (
+          confident > 0 && (
             <Button
               onClick={() => {
                 setConfirming(true);
               }}
             >
-              Accept {suggested} suggested muscle mapping(s)
+              Accept {confident} confident suggestion(s)
             </Button>
           )
         }
@@ -111,8 +113,9 @@ export default function ExercisesPage() {
           void confirmSuggestedMuscles(db);
         }}
       >
-        Marks {suggested} suggested mapping(s) as yours. You can still edit any exercise afterwards.
-        Unassigned exercises need to be set individually.
+        Marks {confident} confident suggestion(s) as yours — the ones where the exercise catalogue
+        and the name rules independently agreed.
+        {unsure > 0 && ` The other ${unsure} are left alone, since the app is not sure about them.`}
       </ConfirmDialog>
 
       <Card>
@@ -173,7 +176,12 @@ export default function ExercisesPage() {
               render: (r) => (
                 <div className="flex flex-wrap items-center gap-1.5">
                   <MuscleChips muscles={r.ex.muscles} />
-                  {needsReview(r.ex) && <MuscleSourceBadge source={r.ex.muscleSource} />}
+                  {needsReview(r.ex) && (
+                    <MuscleSourceBadge
+                      source={r.ex.muscleSource}
+                      confidence={r.ex.suggestionConfidence}
+                    />
+                  )}
                 </div>
               ),
             },

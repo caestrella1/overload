@@ -25,9 +25,11 @@ Track progressive overload from your lifting logs. It's a frontend-only React ap
   - Every chart has a table view.
 - **Muscle groups**:
   - Groups from the import file are used as-is.
-  - Otherwise they're suggested from the exercise name, using a built-in mapping first and keyword rules as the fallback.
-  - You can edit any exercise's groups, or accept all suggestions at once.
+  - Otherwise they're suggested from two independent sources: a bundled catalogue of 868 exercises ([free-exercise-db](https://github.com/yuhonas/free-exercise-db), public domain) matched on the name, and our own keyword rules.
+  - Each suggestion carries a confidence: **high** when both agree, **medium** when only one had something to say, **low** when they disagree — in which case the rules win and both readings are kept. Bulk accept only takes the confident ones.
+  - Every exercise shows how its muscles were guessed, and you can edit any of them.
   - Precedence: set by you > from import > suggested.
+- **Provenance**: every set, workout and exercise records the source it came from and the name that source used. Renaming or merging never erases it, so a merged exercise still lists each app's name for the movement.
 - **Units**: default is lb and can be switched to kg. Each exercise can override the unit its weights were logged in. Totals across exercises are converted to the default unit.
 - **Bodyweight**: log it on the dashboard, and lifts that carry your weight (pull-ups, dips, push-ups) report the load actually moved — bodyweight times the share the movement carries, plus what you added, or minus the assistance taken off. Each set uses the nearest earlier entry.
 - **Assisted lifts** (e.g. `Pull Up (Assisted)`): with no bodyweight logged, lower weight counts as progress and they're left out of volume and e1RM. Once bodyweight is logged they become ordinary loads.
@@ -58,11 +60,18 @@ Tooling: Vite, TypeScript (strict), ESLint (typescript-eslint strict type-checke
 ```
 src/
   domain/     pure logic: types, metrics, muscle mapping, dates, units
+  domain/catalog/  bundled exercise catalogue and the name matcher
   importers/  CSV parsing; one module per source, registered in importers/index.ts
   db/         Dexie schema and repository (import, undo, dedupe, backup, clear)
   components/ UI primitives and charts
   pages/      routes
 ```
+
+### Updating the exercise catalogue
+
+`node scripts/build-catalog.mjs` refetches [free-exercise-db](https://github.com/yuhonas/free-exercise-db) and rewrites `src/domain/catalog/catalog.json`, keeping only the fields the matcher uses (about 16 KB gzipped). It fails if upstream introduces a muscle name we don't map.
+
+The catalogue is a **classification** source only. Identity always stays with the name the import used, because name matching is not reliable enough to decide which sets belong together — a wrong match would silently fuse two lifts' histories.
 
 ### Adding an import source
 

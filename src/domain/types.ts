@@ -23,6 +23,9 @@ export type MuscleGroup =
   | 'Cardio'
   | 'Full Body';
 
+/** How much to trust a muscle suggestion. See domain/suggest.ts. */
+export type Confidence = 'high' | 'medium' | 'low';
+
 export interface MuscleAssignment {
   primary: MuscleGroup[];
   secondary: MuscleGroup[];
@@ -68,6 +71,15 @@ export interface Exercise {
   bodyweightFactor: number;
   /** Every source name that feeds this exercise, gaining an entry on each merge. */
   origins: SourceRef[];
+  /**
+   * Entry in the bundled exercise catalogue this was matched to. A classification link
+   * only: identity always stays with the name the source used.
+   */
+  catalogId: string | null;
+  /** How much to trust the suggested muscles. Absent once you set them yourself. */
+  suggestionConfidence: Confidence | null;
+  /** Why the suggestion came out the way it did, shown on the exercise page. */
+  suggestionReason: string | null;
 }
 
 export interface Workout {

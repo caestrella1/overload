@@ -1,11 +1,12 @@
 import { isBodyweightName, type BodyweightEntry } from '../domain/bodyweight';
 import { mergeSetsInto, resolveAlias } from '../domain/merge';
 import { parseExerciseName, isAssistedName } from '../domain/exerciseName';
-import { suggestMuscles } from '../domain/muscles';
+import { suggestForName } from '../domain/suggest';
 import {
   DEFAULT_SETTINGS,
   type Exercise,
   type ExerciseAlias,
+  type Confidence,
   type SourceRef,
   type ImportRecord,
   type MuscleAssignment,
@@ -63,7 +64,12 @@ export interface ImportPreview {
   plan: ImportPlan;
   /** A previous import of the byte-identical file, if any. */
   sameFile: ImportRecord | null;
-  newExercises: { name: string; muscles: MuscleAssignment | null; fromSource: boolean }[];
+  newExercises: {
+    name: string;
+    muscles: MuscleAssignment | null;
+    fromSource: boolean;
+    confidence: Confidence | null;
+  }[];
   newWorkouts: number;
   dateRange: [string, string] | null;
   sync: SyncPreview;
@@ -115,11 +121,15 @@ export async function previewImport(
   );
   const newExercises = parsed.exercises
     .filter((e) => !known.has(e.name))
-    .map((e) => ({
-      name: e.name,
-      muscles: e.muscles ?? suggestMuscles(e.name),
-      fromSource: !!e.muscles,
-    }));
+    .map((e) => {
+      const suggestion = e.muscles ? null : suggestForName(e.name);
+      return {
+        name: e.name,
+        muscles: e.muscles ?? suggestion?.muscles ?? null,
+        fromSource: !!e.muscles,
+        confidence: suggestion?.confidence ?? null,
+      };
+    });
 
   const workoutKeys = parsed.workouts.map((w) => w.key);
   const existingWorkouts = await db.workouts.where('key').anyOf(workoutKeys).primaryKeys();
@@ -167,17 +177,24 @@ export function mergeExercise(
     bodyweight: isBodyweightName(parsed.name),
     bodyweightFactor: 1,
     origins: [],
+    catalogId: null,
+    suggestionConfidence: null,
+    suggestionReason: null,
   };
   const next = { ...base };
   if (origin) next.origins = addOrigin(next.origins, origin);
   if (parsed.muscles && next.muscleSource !== 'user') {
+    // The file said so itself, which beats anything we could infer.
     next.muscles = parsed.muscles;
     next.muscleSource = 'source';
   } else if (next.muscleSource === 'unassigned') {
-    const suggestion = suggestMuscles(parsed.name);
+    const suggestion = suggestForName(parsed.name);
     if (suggestion) {
-      next.muscles = suggestion;
+      next.muscles = suggestion.muscles;
       next.muscleSource = 'suggested';
+      next.catalogId = suggestion.catalogId;
+      next.suggestionConfidence = suggestion.confidence;
+      next.suggestionReason = suggestion.reason;
     }
   }
   if (parsed.unit && next.unit == null) next.unit = parsed.unit;
@@ -388,7 +405,9 @@ export async function updateExercise(
   name: string,
   patch: Partial<Omit<Exercise, 'name'>>,
 ): Promise<void> {
-  await db.exercises.update(name, patch);
+  // Once you set the muscles yourself there is no suggestion left to rate.
+  const settled = patch.muscleSource === 'user' ? { suggestionConfidence: null } : {};
+  await db.exercises.update(name, { ...patch, ...settled });
 }
 
 export async function findProfile(
@@ -521,9 +540,31 @@ export async function deleteBodyweight(db: OverloadDB, id: number): Promise<void
   await db.bodyweights.delete(id);
 }
 
-/** Accepts every suggested muscle assignment as the user's own. Returns how many changed. */
-export async function confirmSuggestedMuscles(db: OverloadDB): Promise<number> {
-  return db.exercises.where('muscleSource').equals('suggested').modify({ muscleSource: 'user' });
+/**
+ * Accepts suggested muscle assignments as the user's own. Only the confidences asked for,
+ * so a bulk accept never quietly adopts a guess the app itself flagged as shaky.
+ */
+export async function confirmSuggestedMuscles(
+  db: OverloadDB,
+  accept: Confidence[] = ['high'],
+): Promise<number> {
+  return db.exercises
+    .where('muscleSource')
+    .equals('suggested')
+    .filter((e) => accept.includes(e.suggestionConfidence ?? 'medium'))
+    .modify({ muscleSource: 'user', suggestionConfidence: null });
+}
+
+/** Exercises still showing a guess, grouped by how far it can be trusted. */
+export async function countSuggestions(db: OverloadDB): Promise<Record<Confidence, number>> {
+  const counts: Record<Confidence, number> = { high: 0, medium: 0, low: 0 };
+  await db.exercises
+    .where('muscleSource')
+    .equals('suggested')
+    .each((e) => {
+      counts[e.suggestionConfidence ?? 'medium']++;
+    });
+  return counts;
 }
 
 export async function clearAllData(db: OverloadDB, opts: { keepSettings: boolean }): Promise<void> {

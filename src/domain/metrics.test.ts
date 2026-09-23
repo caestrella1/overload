@@ -157,6 +157,9 @@ describe('muscleSeries', () => {
     bodyweight: false,
     bodyweightFactor: 1,
     origins: [],
+    catalogId: null,
+    suggestionConfidence: null,
+    suggestionReason: null,
     ...patch,
   });
   const exercises = new Map([
@@ -209,6 +212,9 @@ describe('muscle helpers', () => {
     bodyweight: false,
     bodyweightFactor: 1,
     origins: [],
+    catalogId: null,
+    suggestionConfidence: null,
+    suggestionReason: null,
   };
 
   it('muscleCredit rolls regions up to their best credit', () => {

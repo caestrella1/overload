@@ -11,6 +11,7 @@ import {
   clearAllData,
   commitImport,
   confirmSuggestedMuscles,
+  countSuggestions,
   countRemovals,
   exportBackup,
   findDuplicateSets,
@@ -147,10 +148,24 @@ describe('clear, backup and restore', () => {
 });
 
 describe('confirmSuggestedMuscles', () => {
-  it('promotes suggestions to user assignments', async () => {
+  it('accepts only confident suggestions by default', async () => {
     await importText(sample, 'h1');
+    const counts = await countSuggestions(db);
+    expect(counts.high).toBeGreaterThan(0);
+
     const changed = await confirmSuggestedMuscles(db);
-    expect(changed).toBe(4);
+    expect(changed).toBe(counts.high);
+    // The shakier guesses are left for review rather than quietly adopted.
+    expect(await db.exercises.where('muscleSource').equals('suggested').count()).toBe(
+      counts.medium + counts.low,
+    );
+    const accepted = await db.exercises.where('muscleSource').equals('user').first();
+    expect(accepted?.suggestionConfidence).toBeNull();
+  });
+
+  it('accepts the rest when asked', async () => {
+    await importText(sample, 'h1');
+    await confirmSuggestedMuscles(db, ['high', 'medium', 'low']);
     expect(await db.exercises.where('muscleSource').equals('suggested').count()).toBe(0);
   });
 });
