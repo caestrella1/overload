@@ -7,7 +7,14 @@ export interface CatalogEntry {
   primary: MuscleGroup[];
   secondary: MuscleGroup[];
   equipment: string | null;
-  cardio: boolean;
+  /** strength, cardio, stretching, plyometrics, powerlifting, olympic weightlifting, strongman. */
+  category: string | null;
+  /** push, pull or static. */
+  force: string | null;
+  /** compound or isolation. */
+  mechanic: string | null;
+  /** beginner, intermediate or expert. */
+  level: string | null;
 }
 
 interface CatalogFile {
@@ -147,6 +154,14 @@ export function matchCatalog(name: string): CatalogMatch | null {
   const agreeing = top.filter((c) => key(c.entry) === key(best.entry)).length;
 
   return { entry: best.entry, score: best.score, agreement: agreeing / top.length };
+}
+
+/** Strong evidence: a close name match with its runners-up behind it. */
+const STRONG_SCORE = 0.8;
+const STRONG_AGREEMENT = 0.6;
+
+export function isStrongMatch(match: CatalogMatch): boolean {
+  return match.score >= STRONG_SCORE && match.agreement >= STRONG_AGREEMENT;
 }
 
 export function catalogMuscles(entry: CatalogEntry): MuscleAssignment {

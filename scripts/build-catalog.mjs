@@ -4,8 +4,9 @@
  *   node scripts/build-catalog.mjs
  *
  * Upstream is public domain (Unlicense), so the data ships with the app and needs no
- * attribution or network access at runtime. Only the fields the matcher uses are kept;
- * instructions and images are dropped, which is most of the upstream file's weight.
+ * attribution or network access at runtime. Kept are the fields the matcher uses plus the
+ * short descriptive ones the app shows on an exercise. Instructions and images are dropped:
+ * the instructions alone are 570 KB, more than the whole app bundle.
  */
 import { writeFileSync } from 'node:fs';
 
@@ -59,10 +60,13 @@ const entries = upstream
       (m) => !mapMuscles(e.primaryMuscles).includes(m),
     ),
     equipment: e.equipment ?? null,
-    cardio: e.category === 'cardio',
+    category: e.category ?? null,
+    force: e.force ?? null,
+    mechanic: e.mechanic ?? null,
+    level: e.level ?? null,
   }))
   // An entry with no usable muscles can only mislead the matcher.
-  .filter((e) => e.primary.length || e.cardio)
+  .filter((e) => e.primary.length || e.category === 'cardio')
   .sort((a, b) => a.id.localeCompare(b.id));
 
 writeFileSync(

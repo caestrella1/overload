@@ -1,4 +1,4 @@
-import { catalogMuscles, matchCatalog, type CatalogMatch } from './catalog/match';
+import { catalogMuscles, isStrongMatch, matchCatalog, type CatalogMatch } from './catalog/match';
 import { suggestMuscles } from './muscles';
 import type { Confidence, MuscleAssignment, MuscleGroup } from './types';
 
@@ -19,10 +19,6 @@ export interface Suggestion {
   /** The other candidate, when the two methods disagreed. */
   alternative: MuscleAssignment | null;
 }
-
-/** Strong catalogue evidence: a close name match with its runners-up behind it. */
-const STRONG_SCORE = 0.8;
-const STRONG_AGREEMENT = 0.6;
 
 function samePrimary(a: MuscleAssignment, b: MuscleAssignment): boolean {
   const key = (m: MuscleGroup[]) => [...m].sort().join('+');
@@ -56,7 +52,7 @@ export function suggestForName(name: string): Suggestion | null {
   const catalog = match ? catalogMuscles(match.entry) : null;
 
   if (match && catalog) {
-    const solid = match.score >= STRONG_SCORE && match.agreement >= STRONG_AGREEMENT;
+    const solid = isStrongMatch(match);
 
     if (rules && samePrimary(catalog, rules)) {
       return {

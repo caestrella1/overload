@@ -69,9 +69,11 @@ src/
 
 ### Updating the exercise catalogue
 
-`node scripts/build-catalog.mjs` refetches [free-exercise-db](https://github.com/yuhonas/free-exercise-db) and rewrites `src/domain/catalog/catalog.json`, keeping only the fields the matcher uses (about 16 KB gzipped). It fails if upstream introduces a muscle name we don't map.
+`node scripts/build-catalog.mjs` refetches [free-exercise-db](https://github.com/yuhonas/free-exercise-db) and rewrites `src/domain/catalog/catalog.json`, keeping the fields the matcher uses plus the short descriptive ones an exercise page shows — equipment, category, force, mechanic, level (about 19 KB gzipped). Instructions and images are dropped; the instructions alone are 570 KB. It fails if upstream introduces a muscle name we don't map.
 
 The catalogue is a **classification** source only. Identity always stays with the name the import used, because name matching is not reliable enough to decide which sets belong together — a wrong match would silently fuse two lifts' histories.
+
+The same caveat shapes the exercise page's reference card: the catalogue splits a movement into band, machine and barbell variants whose names score almost identically, so the card names the entry it matched, prefers your own logged equipment over the entry's, and says plainly when the muscle groups are still an unaccepted suggestion.
 
 ### Themes
 

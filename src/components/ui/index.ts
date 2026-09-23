@@ -4,6 +4,7 @@ export { Card, PageHeader } from './Card';
 export { LinkButton } from './LinkButton';
 export { ConfirmDialog } from './ConfirmDialog';
 export { DataTable, type Column } from './DataTable';
+export { DescriptionList, type DescriptionItem } from './DescriptionList';
 export {
   Badge,
   Callout,

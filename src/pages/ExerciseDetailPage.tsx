@@ -1,10 +1,11 @@
 import { useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { TrendChart } from '../components/charts';
+import { ExerciseReference } from '../components/exercise/ExerciseReference';
 import { ExerciseSettingsCard } from '../components/exercise/ExerciseSettingsCard';
 import { SessionHistory } from '../components/exercise/SessionHistory';
 import { MetricPicker } from '../components/MetricPicker';
-import { MuscleChips } from '../components/MuscleChips';
+import { MuscleChips, MuscleSourceBadge } from '../components/MuscleChips';
 import { PrList } from '../components/PrList';
 import { RangeControls } from '../components/RangeControls';
 import {
@@ -101,6 +102,9 @@ export default function ExerciseDetailPage() {
         subtitle={
           <span className="flex flex-wrap items-center gap-2">
             <MuscleChips muscles={ex.muscles} />
+            {ex.muscleSource !== 'user' && (
+              <MuscleSourceBadge source={ex.muscleSource} confidence={ex.suggestionConfidence} />
+            )}
             {assisted && <Badge tone="accent">Assisted: lower is better</Badge>}
           </span>
         }
@@ -166,13 +170,16 @@ export default function ExerciseDetailPage() {
             className="max-h-96 divide-y divide-border overflow-auto"
           />
         </Card>
-        <ExerciseSettingsCard
-          exercise={ex}
-          defaultUnit={settings.defaultUnit}
-          hasBodyweightLog={bodyweights.length > 0}
-          names={[...exercises.keys()]}
-          setCount={sets.length}
-        />
+        <div className="grid min-w-0 gap-6">
+          <ExerciseReference exercise={ex} />
+          <ExerciseSettingsCard
+            exercise={ex}
+            defaultUnit={settings.defaultUnit}
+            hasBodyweightLog={bodyweights.length > 0}
+            names={[...exercises.keys()]}
+            setCount={sets.length}
+          />
+        </div>
       </div>
 
       <Card title="History" subtitle={`${stats.length} sessions, newest first`}>

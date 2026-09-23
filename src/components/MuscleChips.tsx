@@ -8,10 +8,11 @@ const SOURCE_BADGES: Record<MuscleSource, { tone: Tone; label: string }> = {
   unassigned: { tone: 'critical', label: 'Unassigned' },
 };
 
+/** The tone says how much to trust the guess; the word "Suggested" says nobody has accepted it. */
 const CONFIDENCE_BADGES: Record<Confidence, { tone: Tone; label: string }> = {
-  high: { tone: 'good', label: 'Confident guess' },
-  medium: { tone: 'warning', label: 'Likely guess' },
-  low: { tone: 'critical', label: 'Unsure — check this' },
+  high: { tone: 'good', label: 'Suggested · confident' },
+  medium: { tone: 'warning', label: 'Suggested · likely' },
+  low: { tone: 'critical', label: 'Suggested · unsure' },
 };
 
 /**
