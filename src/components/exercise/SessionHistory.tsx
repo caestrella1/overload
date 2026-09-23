@@ -3,7 +3,7 @@ import { describeSet } from '../../domain/analysis';
 import { formatDate } from '../../domain/dates';
 import type { SetType, Unit, WorkoutSet } from '../../domain/types';
 import { cx } from '../../lib/cx';
-import { Button } from '../ui';
+import { Badge, Button } from '../ui';
 
 const PAGE = 10;
 
@@ -86,19 +86,20 @@ export function SetRow({ set, label, unit }: { set: WorkoutSet; label: string; u
   const typeLabel = TYPE_LABELS[set.setType];
   return (
     <li className="flex items-baseline gap-3 py-1 text-sm">
+      {/* Working sets carry the theme colour; warm-ups stay muted, so the ones that count stand out. */}
       <span
         className={cx(
-          'w-6 shrink-0 rounded text-center text-xs font-semibold',
-          warmup ? 'text-ink-3' : 'text-ink-2',
+          'w-6 shrink-0 text-center text-xs font-semibold',
+          warmup ? 'text-ink-3' : 'text-accent',
         )}
       >
         {label}
       </span>
-      <span className={cx('min-w-0 shrink-0', warmup ? 'text-ink-3' : 'text-ink')}>
+      <span className={cx('min-w-0 shrink-0', warmup ? 'text-ink-3' : 'font-medium text-accent')}>
         {describeSet(set, unit)}
       </span>
       {typeLabel && <span className="shrink-0 text-xs text-ink-2">{typeLabel}</span>}
-      {set.rpe != null && <span className="shrink-0 text-xs text-ink-3">RPE {set.rpe}</span>}
+      {set.rpe != null && <Badge tone="neutral">RPE {set.rpe}</Badge>}
       {set.notes && (
         <span className="ml-auto min-w-0 truncate text-xs text-ink-3" title={set.notes}>
           {set.notes}
