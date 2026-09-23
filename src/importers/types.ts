@@ -1,7 +1,8 @@
 import type { MuscleAssignment, Unit, Workout, WorkoutSet } from '../domain/types';
 
-export type ParsedSet = Omit<WorkoutSet, 'id' | 'importId'>;
-export type ParsedWorkout = Omit<Workout, 'importId'>;
+/** Parsers name the origin; the import supplies the source and import id on commit. */
+export type ParsedSet = Omit<WorkoutSet, 'id' | 'importId' | 'originSource' | 'originImportId'>;
+export type ParsedWorkout = Omit<Workout, 'importId' | 'originSource' | 'originImportId'>;
 
 export interface ParsedExercise {
   name: string;

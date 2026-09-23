@@ -2,6 +2,7 @@ import { db } from '../../db/db';
 import { updateExercise } from '../../db/repo';
 import type { Exercise, Unit } from '../../domain/types';
 import { MuscleEditor } from '../MuscleEditor';
+import { ExerciseOrigins } from './ExerciseOrigins';
 import { RenameExercise } from './RenameExercise';
 import { Card, Checkbox, FieldRow, Select, TextInput } from '../ui';
 
@@ -89,6 +90,9 @@ export function ExerciseSettingsCard({
           </span>
         </FieldRow>
       )}
+      <h3 className="mt-4 mb-2 text-sm font-semibold text-ink">Imported from</h3>
+      <ExerciseOrigins origins={exercise.origins} current={exercise.name} />
+
       <h3 className="mt-4 mb-2 text-sm font-semibold text-ink">Muscle groups</h3>
       <MuscleEditor
         key={exercise.name}

@@ -107,6 +107,7 @@ function parseStrong(rows: CsvRow[], headers: string[]): ParseResult {
         key: workoutKey,
         date,
         name: workoutName,
+        originName: workoutName,
         durationSec: parseDuration(cell(row, col.duration)),
         notes: null,
       };
@@ -155,6 +156,7 @@ function parseStrong(rows: CsvRow[], headers: string[]): ParseResult {
       workoutKey,
       date,
       exercise,
+      originName: exercise,
       setLabel: label,
       setIndex,
     });
