@@ -2,6 +2,7 @@ import { formatDate } from '../../domain/dates';
 import { formatNumber } from '../../domain/units';
 import { useImports } from '../../hooks/useData';
 import { useSourceLabels } from '../../hooks/useSourceLabels';
+import { ImportIcon } from '../icons';
 import { Card, LinkButton, Muted } from '../ui';
 
 /**
@@ -15,9 +16,15 @@ export function ImportCard() {
 
   return (
     <Card
+      icon={<ImportIcon />}
       title="Import"
       subtitle="Bring in a Strong export, or any CSV you map yourself."
-      actions={<LinkButton to="/import">Import data</LinkButton>}
+      actions={
+        <LinkButton to="/import">
+          <ImportIcon />
+          Import data
+        </LinkButton>
+      }
     >
       {last ? (
         <Muted>

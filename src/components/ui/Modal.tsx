@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
+import { CloseIcon } from '../icons';
 import { cx } from '../../lib/cx';
 
 /**
@@ -51,17 +52,7 @@ export function Modal({
           onClick={onClose}
           className="focus-ring -m-1 rounded-full p-1 text-ink-2 hover:bg-surface-2 hover:text-ink"
         >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinecap="round"
-            aria-hidden="true"
-            className="h-4 w-4"
-          >
-            <path d="M6 18L18 6M6 6l12 12" />
-          </svg>
+          <CloseIcon aria-hidden="true" />
         </button>
       </div>
       {/* Contents exist only while open, so a closed modal leaves no stale draft or hidden copy of the page's text behind. */}

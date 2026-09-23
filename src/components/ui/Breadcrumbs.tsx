@@ -1,4 +1,5 @@
 import { Fragment } from 'react';
+import { CrumbIcon } from '../icons';
 import { TextLink } from './TextLink';
 
 export interface Crumb {
@@ -15,7 +16,7 @@ export function Breadcrumbs({ items }: { items: Crumb[] }) {
           <Fragment key={c.label}>
             {i > 0 && (
               <li aria-hidden="true" className="text-ink-3">
-                /
+                <CrumbIcon width="0.9em" height="0.9em" />
               </li>
             )}
             <li className="min-w-0">

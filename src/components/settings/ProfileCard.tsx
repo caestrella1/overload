@@ -8,6 +8,7 @@ import { formatNumber } from '../../domain/units';
 import { useBodyweights, useSettings } from '../../hooks/useData';
 import { CHART_PRIMARY } from '../../lib/colors';
 import { TrendChart } from '../charts';
+import { AddIcon, BodyweightIcon, DeleteIcon } from '../icons';
 import { Button, Card, Muted, Segmented, TextInput } from '../ui';
 
 const today = () => toLocalString(new Date()).slice(0, 10);
@@ -39,6 +40,7 @@ export function ProfileCard() {
 
   return (
     <Card
+      icon={<BodyweightIcon />}
       title="Profile"
       subtitle="Your bodyweight over time. Used for pull-ups, dips and assisted lifts, so their charts show the weight you actually moved."
       actions={
@@ -98,6 +100,7 @@ export function ProfileCard() {
           ]}
         />
         <Button variant="primary" disabled={!valid} onClick={add}>
+          <AddIcon />
           {log.some((e) => e.date === date) ? 'Update' : 'Add'}
         </Button>
       </div>
@@ -142,6 +145,7 @@ export function ProfileCard() {
                     if (entry.id != null) void deleteBodyweight(db, entry.id);
                   }}
                 >
+                  <DeleteIcon />
                   Remove
                 </Button>
               </li>

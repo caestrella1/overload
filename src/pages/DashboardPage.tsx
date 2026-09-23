@@ -34,6 +34,7 @@ import {
   useWorkouts,
 } from '../hooks/useData';
 import { usePref } from '../hooks/usePref';
+import { ImportIcon, PrIcon, TrendIcon } from '../components/icons';
 import { CHART_PRIMARY } from '../lib/colors';
 
 type TotalMetric = 'volume' | 'sets' | 'workouts';
@@ -100,7 +101,10 @@ export default function DashboardPage() {
         actions={
           <>
             <RangeControls range={range} onRange={setRange} />
-            <LinkButton to="/import">Import</LinkButton>
+            <LinkButton to="/import">
+              <ImportIcon />
+              Import
+            </LinkButton>
           </>
         }
       />
@@ -145,6 +149,7 @@ export default function DashboardPage() {
       <div className="grid items-start gap-6 lg:grid-cols-5">
         <Card
           className="min-w-0 lg:col-span-3"
+          icon={<TrendIcon />}
           title="Weekly training"
           subtitle={metric === 'volume' ? `Volume in ${unit}, assisted lifts excluded` : undefined}
           actions={
@@ -171,6 +176,7 @@ export default function DashboardPage() {
 
         <Card
           className="min-w-0 lg:col-span-2"
+          icon={<PrIcon />}
           title="Recent PRs"
           subtitle="Beats your previous best"
         >

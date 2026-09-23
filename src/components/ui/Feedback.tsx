@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import type { ComponentType, ReactNode } from 'react';
+import { CriticalIcon, GoodIcon, InfoIcon, WarningIcon } from '../icons';
 import { cx } from '../../lib/cx';
 
 export type Tone = 'neutral' | 'accent' | 'good' | 'warning' | 'critical';
@@ -25,29 +26,16 @@ export function Badge({ tone = 'neutral', children }: { tone?: Tone; children: R
   );
 }
 
-const ICON_PATHS: Record<StatusTone, string> = {
-  info: 'M12 8h.01M11 12h1v4h1M12 3a9 9 0 100 18 9 9 0 000-18z',
-  warning:
-    'M12 9v4m0 4h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z',
-  good: 'M5 13l4 4L19 7',
-  critical: 'M6 18L18 6M6 6l12 12',
+const STATUS_ICONS: Record<StatusTone, ComponentType<{ className?: string }>> = {
+  info: InfoIcon,
+  warning: WarningIcon,
+  good: GoodIcon,
+  critical: CriticalIcon,
 };
 
 export function StatusIcon({ tone, className }: { tone: StatusTone; className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      className={cx('h-4 w-4 shrink-0', className)}
-    >
-      <path d={ICON_PATHS[tone]} />
-    </svg>
-  );
+  const Glyph = STATUS_ICONS[tone];
+  return <Glyph className={cx('h-4 w-4 shrink-0', className)} />;
 }
 
 const CALLOUT_TONES: Record<StatusTone, { box: string; icon: string }> = {

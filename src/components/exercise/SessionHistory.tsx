@@ -3,6 +3,7 @@ import { describeSet } from '../../domain/analysis';
 import { formatDate } from '../../domain/dates';
 import type { SetType, Unit, WorkoutSet } from '../../domain/types';
 import { cx } from '../../lib/cx';
+import { MoreIcon } from '../icons';
 import { Badge, Button } from '../ui';
 
 const PAGE = 10;
@@ -73,6 +74,7 @@ export function SessionHistory({ sets, unit }: { sets: WorkoutSet[]; unit: Unit 
               setLimit((l) => l + PAGE * 2);
             }}
           >
+            <MoreIcon />
             Show more
           </Button>
         </div>

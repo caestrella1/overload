@@ -2,6 +2,7 @@ import { ImportHistory } from '../components/import/ImportHistory';
 import { ImportPreview } from '../components/import/ImportPreview';
 import { MappingStep } from '../components/import/MappingStep';
 import { Button, Callout, Card, FileDropzone, PageHeader, TextLink } from '../components/ui';
+import { SuggestIcon } from '../components/icons';
 import type { ImportRecord } from '../domain/types';
 import { formatNumber } from '../domain/units';
 import { useSettings } from '../hooks/useData';
@@ -49,6 +50,7 @@ export default function ImportPage() {
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-ink-2">
           <span>No export handy? Load a year of generated push/pull/legs training.</span>
           <Button variant="ghost" onClick={() => void loadSample()}>
+            <SuggestIcon />
             Try sample data
           </Button>
         </div>

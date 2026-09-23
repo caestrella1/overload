@@ -4,6 +4,7 @@ import { db } from '../../db/db';
 import { deleteProfile, listProfiles } from '../../db/repo';
 import { formatDate } from '../../domain/dates';
 import { MAPPED_FIELDS, type MappingProfile } from '../../importers/mapping';
+import { FormatsIcon } from '../icons';
 import { Button, Card, ConfirmDialog, DataTable, Muted } from '../ui';
 
 /** Column mappings saved for CSV layouts the app has no built-in importer for. */
@@ -16,6 +17,7 @@ export function FormatsCard() {
 
   return (
     <Card
+      icon={<FormatsIcon />}
       title="Saved CSV formats"
       subtitle="Layouts you've mapped. A matching file imports without asking again."
     >

@@ -8,6 +8,7 @@ import { MetricPicker } from '../components/MetricPicker';
 import { MuscleChips, MuscleSourceBadge } from '../components/MuscleChips';
 import { PrList } from '../components/PrList';
 import { RangeControls } from '../components/RangeControls';
+import { HistoryIcon, PrIcon, SettingsIcon } from '../components/icons';
 import {
   Badge,
   Breadcrumbs,
@@ -124,6 +125,7 @@ export default function ExerciseDetailPage() {
               setEditing(true);
             }}
           >
+            <SettingsIcon />
             Exercise settings
           </Button>
         }
@@ -194,6 +196,7 @@ export default function ExerciseDetailPage() {
 
       <div className="mb-6 grid items-start gap-6 lg:grid-cols-2">
         <Card
+          icon={<PrIcon />}
           title="PR history"
           subtitle="Each time you beat a previous best"
           className={hasReference ? undefined : 'lg:col-span-2'}
@@ -207,7 +210,11 @@ export default function ExerciseDetailPage() {
         <ExerciseReference exercise={ex} />
       </div>
 
-      <Card title="History" subtitle={`${stats.length} sessions, newest first`}>
+      <Card
+        icon={<HistoryIcon />}
+        title="History"
+        subtitle={`${stats.length} sessions, newest first`}
+      >
         <SessionHistory sets={sets} unit={unit} />
       </Card>
     </>

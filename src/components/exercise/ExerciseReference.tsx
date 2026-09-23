@@ -3,6 +3,7 @@ import { updateExercise } from '../../db/repo';
 import { CATALOG } from '../../domain/catalog/match';
 import { catalogReferenceFor } from '../../domain/catalog/lookup';
 import type { Exercise } from '../../domain/types';
+import { AcceptIcon, ReferenceIcon } from '../icons';
 import { MuscleChips, MuscleSourceBadge } from '../MuscleChips';
 import { Badge, Button, Callout, Card, DescriptionList, type DescriptionItem } from '../ui';
 
@@ -47,6 +48,7 @@ export function ExerciseReference({ exercise }: { exercise: Exercise }) {
 
   return (
     <Card
+      icon={<ReferenceIcon />}
       title="Exercise reference"
       subtitle={`Matched by name against the bundled ${CATALOG.source} catalogue. Its entries split a movement by grip and equipment, so expect a variant; the muscle groups are what the match is for.`}
       actions={
@@ -70,6 +72,7 @@ export function ExerciseReference({ exercise }: { exercise: Exercise }) {
               void updateExercise(db, exercise.name, { muscleSource: 'user' });
             }}
           >
+            <AcceptIcon />
             Accept these muscles
           </Button>
         </Callout>

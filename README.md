@@ -75,6 +75,10 @@ The catalogue is a **classification** source only. Identity always stays with th
 
 The same caveat shapes the exercise page's reference card: the catalogue splits a movement into band, machine and barbell variants whose names score almost identically, so the card names the entry it matched, prefers your own logged equipment over the entry's, and says plainly when the muscle groups are still an unaccepted suggestion.
 
+### Icons
+
+Icons come from [Iconoir](https://iconoir.com) (MIT) via `iconoir-react`, which tree-shakes — only the glyphs the app names end up in the bundle. Every one is picked in `src/components/icons.ts` and re-exported under a name for its job (`ImportIcon`, `DeleteIcon`) rather than its drawing, so swapping a glyph is one edit and no component knows which one it got. Size and stroke come from the `IconoirProvider` in `Layout`, in `em`, so icons scale with the text beside them.
+
 ### Themes
 
 `npm run build:themes` regenerates `src/themes.css` — the accent and the tinted neutrals for each of the seven themes. Every theme is a single OKLCH hue: the accent is that hue at full chroma, the surfaces and text are the same hue at a whisper of chroma, so the whole page carries the tint. Lightness is not fixed across hues (a yellow and a blue of equal OKLCH lightness differ wildly in luminance), so each value is searched until it clears its WCAG target against the surface it sits on. The script prints a contrast report and exits non-zero if any theme falls short, so `src/themes.css` is never hand-edited.

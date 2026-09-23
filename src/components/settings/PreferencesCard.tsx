@@ -4,6 +4,7 @@ import type { E1rmFormula, Unit } from '../../domain/types';
 import { useSettings } from '../../hooks/useData';
 import { ACCENTS, useAccent } from '../../hooks/useAccent';
 import { useTheme, type ThemePref } from '../../hooks/useTheme';
+import { SettingsIcon } from '../icons';
 import { Card, Checkbox, FieldRow, Segmented, SwatchPicker } from '../ui';
 
 export function PreferencesCard() {
@@ -11,7 +12,7 @@ export function PreferencesCard() {
   const [theme, setTheme] = useTheme();
   const [accent, setAccent] = useAccent();
   return (
-    <Card title="Preferences">
+    <Card icon={<SettingsIcon />} title="Preferences">
       <FieldRow
         label="Default weight unit"
         hint="Used for exercises without their own unit, and for totals across exercises."

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ExerciseCard } from '../components/exercise/ExerciseCard';
+import { AcceptIcon } from '../components/icons';
 import { NoDataPage } from '../components/NoDataPage';
 import {
   Button,
@@ -94,6 +95,7 @@ export default function ExercisesPage() {
                 setConfirming(true);
               }}
             >
+              <AcceptIcon />
               Accept {confident} confident suggestion(s)
             </Button>
           )
