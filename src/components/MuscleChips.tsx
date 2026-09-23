@@ -1,4 +1,4 @@
-import type { MuscleAssignment, MuscleSource } from '../domain/types';
+import type { Confidence, MuscleAssignment, MuscleSource } from '../domain/types';
 import { Badge, type Tone } from './ui';
 
 const SOURCE_BADGES: Record<MuscleSource, { tone: Tone; label: string }> = {
@@ -8,8 +8,26 @@ const SOURCE_BADGES: Record<MuscleSource, { tone: Tone; label: string }> = {
   unassigned: { tone: 'critical', label: 'Unassigned' },
 };
 
-export function MuscleSourceBadge({ source }: { source: MuscleSource }) {
-  const b = SOURCE_BADGES[source];
+/** The tone says how much to trust the guess; the word "Suggested" says nobody has accepted it. */
+const CONFIDENCE_BADGES: Record<Confidence, { tone: Tone; label: string }> = {
+  high: { tone: 'good', label: 'Suggested · confident' },
+  medium: { tone: 'warning', label: 'Suggested · likely' },
+  low: { tone: 'critical', label: 'Suggested · unsure' },
+};
+
+/**
+ * A suggestion's badge reflects how much to trust it; anything else names where the
+ * assignment came from.
+ */
+export function MuscleSourceBadge({
+  source,
+  confidence,
+}: {
+  source: MuscleSource;
+  confidence?: Confidence | null;
+}) {
+  const b =
+    source === 'suggested' && confidence ? CONFIDENCE_BADGES[confidence] : SOURCE_BADGES[source];
   return <Badge tone={b.tone}>{b.label}</Badge>;
 }
 

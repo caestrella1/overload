@@ -39,9 +39,17 @@ export function MuscleEditor({
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-center gap-2 text-sm text-ink-2">
-        <MuscleSourceBadge source={exercise.muscleSource} />
+        <MuscleSourceBadge
+          source={exercise.muscleSource}
+          confidence={exercise.suggestionConfidence}
+        />
         <span>Click to cycle: primary → secondary → off.</span>
       </div>
+      {exercise.muscleSource === 'suggested' && exercise.suggestionReason && (
+        <p className="mb-3 text-xs text-ink-2">
+          How this was guessed: {exercise.suggestionReason}.
+        </p>
+      )}
       <div className="flex flex-wrap gap-1.5">
         {MUSCLE_GROUPS.map((m) => {
           const role = roleOf(draft, m);
@@ -54,7 +62,7 @@ export function MuscleEditor({
               }}
               aria-label={`${m}: ${role}`}
               className={cx(
-                'rounded-md border px-2 py-1 text-xs font-medium transition-colors',
+                'rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
                 role === 'primary' && 'border-accent bg-accent text-accent-ink',
                 role === 'secondary' && 'border-accent bg-accent/10 text-ink',
                 role === 'none' && 'border-border text-ink-2 hover:bg-surface-2',

@@ -8,6 +8,7 @@ const parsed = (key: string, contentHash: string): ParsedSet => ({
   workoutKey: 'w',
   date: '2020-01-01T00:00:00',
   exercise: 'X',
+  originName: 'X',
   setLabel: '1',
   setIndex: 1,
   setType: 'normal',
@@ -21,6 +22,8 @@ const parsed = (key: string, contentHash: string): ParsedSet => ({
 
 const stored = (key: string, date: string, importId: number): WorkoutSet => ({
   ...parsed(key, 'h'),
+  originSource: 'strong',
+  originImportId: importId,
   id: Number(key.replace(/\D/g, '')) || 1,
   date,
   importId,

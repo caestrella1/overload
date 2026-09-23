@@ -4,6 +4,7 @@ import { db } from '../../db/db';
 import { renameExercise } from '../../db/repo';
 import type { Exercise } from '../../domain/types';
 import { exercisePath, formatNumber } from '../../domain/units';
+import { AliasIcon, EditIcon } from '../icons';
 import { Button, ConfirmDialog, FieldRow, TextInput } from '../ui';
 
 /**
@@ -62,6 +63,7 @@ export function RenameExercise({
               setConfirming(true);
             }}
           >
+            {merging ? <AliasIcon /> : <EditIcon />}
             {merging ? 'Merge' : 'Rename'}
           </Button>
         </span>

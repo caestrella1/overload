@@ -60,7 +60,7 @@ export function FileDropzone({
         if (file) picker.onFile(file);
       }}
       className={cx(
-        'flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-6 py-10 text-center transition-colors focus-within:border-accent',
+        'flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-10 text-center transition-colors focus-within:border-accent',
         dragging ? 'border-accent bg-accent/5' : 'border-border hover:bg-surface-2',
       )}
     >

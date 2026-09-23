@@ -4,6 +4,7 @@ import { undoImport } from '../../db/repo';
 import type { ImportRecord } from '../../domain/types';
 import { formatNumber } from '../../domain/units';
 import { useImports } from '../../hooks/useData';
+import { UndoIcon } from '../icons';
 import { Button, Card, ConfirmDialog, DataTable } from '../ui';
 
 export function ImportHistory() {
@@ -53,6 +54,7 @@ export function ImportHistory() {
                   setUndoing(r);
                 }}
               >
+                <UndoIcon />
                 Undo
               </Button>
             ),

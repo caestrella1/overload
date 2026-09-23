@@ -22,6 +22,9 @@ function s(partial: Partial<WorkoutSet>): WorkoutSet {
     workoutKey: `${partial.date ?? '2024-01-01T10:00:00'}|W`,
     date: '2024-01-01T10:00:00',
     exercise: 'Bench Press (Barbell)',
+    originSource: 'strong',
+    originName: partial.exercise ?? 'Bench Press (Barbell)',
+    originImportId: 1,
     setLabel: '1',
     setIndex: 1,
     setType: 'normal',
@@ -153,6 +156,10 @@ describe('muscleSeries', () => {
     assisted: false,
     bodyweight: false,
     bodyweightFactor: 1,
+    origins: [],
+    catalogId: null,
+    suggestionConfidence: null,
+    suggestionReason: null,
     ...patch,
   });
   const exercises = new Map([
@@ -204,6 +211,10 @@ describe('muscle helpers', () => {
     assisted: false,
     bodyweight: false,
     bodyweightFactor: 1,
+    origins: [],
+    catalogId: null,
+    suggestionConfidence: null,
+    suggestionReason: null,
   };
 
   it('muscleCredit rolls regions up to their best credit', () => {

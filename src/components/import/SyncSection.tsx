@@ -22,7 +22,7 @@ export function SyncSection({
   const large = isLargeRemoval(count, sync.inScope);
 
   return (
-    <section className="mb-5 rounded-lg border border-border p-3">
+    <section className="mb-5 rounded-xl border border-border p-3">
       <h3 className="text-sm font-semibold text-ink">Sets deleted in the source app</h3>
       {count === 0 ? (
         <Muted className="mt-1">

@@ -23,7 +23,7 @@ export function Select<T extends string>({
       onChange={(e) => {
         onChange(e.target.value as T);
       }}
-      className={cx('field focus-ring max-w-full py-1.5 pr-8 pl-2.5', className)}
+      className={cx('field focus-ring max-w-full py-1.5 pr-8 pl-3.5', className)}
     >
       {options.map((o) => (
         <option key={o.id} value={o.id} disabled={o.disabled}>

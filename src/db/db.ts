@@ -1,8 +1,15 @@
 import Dexie, { type EntityTable } from 'dexie';
 import { isBodyweightName, type BodyweightEntry } from '../domain/bodyweight';
-import type { ExerciseAlias } from '../domain/types';
+import { suggestForName } from '../domain/suggest';
 import type { MappingProfile } from '../importers/mapping';
-import type { Exercise, ImportRecord, Workout, WorkoutSet } from '../domain/types';
+import type {
+  Exercise,
+  ExerciseAlias,
+  ImportRecord,
+  SourceRef,
+  Workout,
+  WorkoutSet,
+} from '../domain/types';
 
 export interface MetaRow {
   key: string;
@@ -57,7 +64,7 @@ export function createDb(name = 'overload'): OverloadDB {
     .stores({ bodyweights: '++id, &date' })
     .upgrade((tx) =>
       tx
-        .table<Exercise>('exercises')
+        .table<Omit<Exercise, 'origins'> & { origins?: SourceRef[] }>('exercises')
         .toCollection()
         .modify((e) => {
           e.bodyweight = isBodyweightName(e.name);
@@ -66,6 +73,76 @@ export function createDb(name = 'overload'): OverloadDB {
     );
   // v5 remembers renamed and merged exercises, so later imports follow the rename.
   db.version(5).stores({ aliases: '&from, to' });
+  // v6 records where each row came from, so provenance survives renames and merges.
+  // Rows written before it lack the origin fields, hence the partial types below.
+  db.version(6).upgrade(async (tx) => {
+    interface Origin {
+      originSource: string;
+      originName: string;
+      originImportId: number;
+    }
+    type Legacy<T extends Origin> = Omit<T, keyof Origin> & Partial<Origin>;
+    const imports = await tx.table<ImportRecord>('imports').toArray();
+    const sourceOf = new Map(imports.map((r) => [r.id, r.source]));
+    const firstSeenOf = new Map(imports.map((r) => [r.id, r.importedAt]));
+    const UNKNOWN = 'unknown';
+
+    // Remember which exercise each source name belongs to before the sets are rewritten.
+    const exerciseOrigins = new Map<string, SourceRef>();
+    await tx
+      .table<Legacy<WorkoutSet>>('sets')
+      .toCollection()
+      .modify((s) => {
+        s.originSource ??= sourceOf.get(s.importId) ?? UNKNOWN;
+        s.originName ??= s.exercise;
+        s.originImportId ??= s.importId;
+        exerciseOrigins.set(s.exercise, {
+          source: s.originSource ?? UNKNOWN,
+          name: s.originName ?? s.exercise,
+          importId: s.originImportId ?? s.importId,
+          firstSeen: firstSeenOf.get(s.importId) ?? '',
+        });
+      });
+
+    await tx
+      .table<Legacy<Workout>>('workouts')
+      .toCollection()
+      .modify((w) => {
+        w.originSource ??= sourceOf.get(w.importId) ?? UNKNOWN;
+        w.originName ??= w.name;
+        w.originImportId ??= w.importId;
+      });
+
+    await tx
+      .table<Omit<Exercise, 'origins'> & { origins?: SourceRef[] }>('exercises')
+      .toCollection()
+      .modify((e) => {
+        if (e.origins?.length) return;
+        const known = exerciseOrigins.get(e.name);
+        e.origins = known ? [known] : [];
+      });
+  });
+  // v7 links exercises to the bundled catalogue and records how far to trust the
+  // suggestion. Existing guesses are re-run, since the catalogue knows more than the
+  // name rules did on their own.
+  db.version(7).upgrade((tx) =>
+    tx
+      .table<Exercise>('exercises')
+      .toCollection()
+      .modify((e) => {
+        e.catalogId ??= null;
+        e.suggestionConfidence ??= null;
+        e.suggestionReason ??= null;
+        if (e.muscleSource !== 'suggested' && e.muscleSource !== 'unassigned') return;
+        const suggestion = suggestForName(e.name);
+        if (!suggestion) return;
+        e.muscles = suggestion.muscles;
+        e.muscleSource = 'suggested';
+        e.catalogId = suggestion.catalogId;
+        e.suggestionConfidence = suggestion.confidence;
+        e.suggestionReason = suggestion.reason;
+      }),
+  );
   return db;
 }
 

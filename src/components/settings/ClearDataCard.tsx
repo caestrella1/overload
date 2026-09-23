@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { db } from '../../db/db';
 import { clearAllData } from '../../db/repo';
+import { DeleteIcon } from '../icons';
 import { Button, Callout, Card, Checkbox, ConfirmDialog } from '../ui';
 
 export function ClearDataCard() {
@@ -8,7 +9,7 @@ export function ClearDataCard() {
   const [keepSettings, setKeepSettings] = useState(true);
   const [done, setDone] = useState(false);
   return (
-    <Card title="Clear data">
+    <Card icon={<DeleteIcon />} title="Clear data">
       {done && <Callout className="mb-3" tone="good" title="All workout data cleared" />}
       <p className="mb-3 text-sm text-ink-2">
         Deletes every workout, set and import from this browser. This can&apos;t be undone.
@@ -20,6 +21,7 @@ export function ClearDataCard() {
           setOpen(true);
         }}
       >
+        <DeleteIcon />
         Clear all data…
       </Button>
       <ConfirmDialog

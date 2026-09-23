@@ -25,8 +25,10 @@ export function DataTable<T>({
   stickyHeader?: boolean;
   empty?: ReactNode;
 }) {
+  // `relative` keeps absolutely positioned cell content (screen-reader labels) inside the
+  // scroller; without it they escape to the page and widen it.
   return (
-    <div className="overflow-x-auto">
+    <div className="relative overflow-x-auto">
       <table className="w-full text-sm" style={minWidth ? { minWidth } : undefined}>
         <thead className={cx(stickyHeader && 'sticky top-0 bg-surface')}>
           <tr className="border-b border-border text-left text-xs text-ink-2">

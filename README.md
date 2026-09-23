@@ -25,9 +25,11 @@ Track progressive overload from your lifting logs. It's a frontend-only React ap
   - Every chart has a table view.
 - **Muscle groups**:
   - Groups from the import file are used as-is.
-  - Otherwise they're suggested from the exercise name, using a built-in mapping first and keyword rules as the fallback.
-  - You can edit any exercise's groups, or accept all suggestions at once.
+  - Otherwise they're suggested from two independent sources: a bundled catalogue of 868 exercises ([free-exercise-db](https://github.com/yuhonas/free-exercise-db), public domain) matched on the name, and our own keyword rules.
+  - Each suggestion carries a confidence: **high** when both agree, **medium** when only one had something to say, **low** when they disagree — in which case the rules win and both readings are kept. Bulk accept only takes the confident ones.
+  - Every exercise shows how its muscles were guessed, and you can edit any of them.
   - Precedence: set by you > from import > suggested.
+- **Provenance**: every set, workout and exercise records the source it came from and the name that source used. Renaming or merging never erases it, so a merged exercise still lists each app's name for the movement.
 - **Units**: default is lb and can be switched to kg. Each exercise can override the unit its weights were logged in. Totals across exercises are converted to the default unit.
 - **Bodyweight**: log it on the dashboard, and lifts that carry your weight (pull-ups, dips, push-ups) report the load actually moved — bodyweight times the share the movement carries, plus what you added, or minus the assistance taken off. Each set uses the nearest earlier entry.
 - **Assisted lifts** (e.g. `Pull Up (Assisted)`): with no bodyweight logged, lower weight counts as progress and they're left out of volume and e1RM. Once bodyweight is logged they become ordinary loads.
@@ -58,11 +60,30 @@ Tooling: Vite, TypeScript (strict), ESLint (typescript-eslint strict type-checke
 ```
 src/
   domain/     pure logic: types, metrics, muscle mapping, dates, units
+  domain/catalog/  bundled exercise catalogue and the name matcher
   importers/  CSV parsing; one module per source, registered in importers/index.ts
   db/         Dexie schema and repository (import, undo, dedupe, backup, clear)
   components/ UI primitives and charts
   pages/      routes
 ```
+
+### Updating the exercise catalogue
+
+`node scripts/build-catalog.mjs` refetches [free-exercise-db](https://github.com/yuhonas/free-exercise-db) and rewrites `src/domain/catalog/catalog.json`, keeping the fields the matcher uses plus the short descriptive ones an exercise page shows — equipment, category, force, mechanic, level (about 19 KB gzipped). Instructions and images are dropped; the instructions alone are 570 KB. It fails if upstream introduces a muscle name we don't map.
+
+The catalogue is a **classification** source only. Identity always stays with the name the import used, because name matching is not reliable enough to decide which sets belong together — a wrong match would silently fuse two lifts' histories.
+
+The same caveat shapes the exercise page's reference card: the catalogue splits a movement into band, machine and barbell variants whose names score almost identically, so the card names the entry it matched, prefers your own logged equipment over the entry's, and says plainly when the muscle groups are still an unaccepted suggestion.
+
+### Icons
+
+Icons come from [Iconoir](https://iconoir.com) (MIT) via `iconoir-react`, which tree-shakes — only the glyphs the app names end up in the bundle. Every one is picked in `src/components/icons.ts` and re-exported under a name for its job (`ImportIcon`, `DeleteIcon`) rather than its drawing, so swapping a glyph is one edit and no component knows which one it got. Size and stroke come from the `IconoirProvider` in `Layout`, in `em`, so icons scale with the text beside them.
+
+### Themes
+
+`npm run build:themes` regenerates `src/themes.css` — the accent and the tinted neutrals for each of the seven themes. Every theme is a single OKLCH hue: the accent is that hue at full chroma, the surfaces and text are the same hue at a whisper of chroma, so the whole page carries the tint. Lightness is not fixed across hues (a yellow and a blue of equal OKLCH lightness differ wildly in luminance), so each value is searched until it clears its WCAG target against the surface it sits on. The script prints a contrast report and exits non-zero if any theme falls short, so `src/themes.css` is never hand-edited.
+
+Chart series colours are deliberately not themed: they encode data identity and are validated for colour-vision deficiency as a set. Only `--chart-primary`, used where a chart draws a single series, follows the accent.
 
 ### Adding an import source
 

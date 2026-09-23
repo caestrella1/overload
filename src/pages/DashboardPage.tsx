@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { StackedBars } from '../components/charts';
 import { NoDataPage } from '../components/NoDataPage';
-import { BodyweightCard } from '../components/BodyweightCard';
 import { PrList } from '../components/PrList';
 import { StalledLifts } from '../components/StalledLifts';
 import { SampleDataBanner } from '../components/SampleDataBanner';
@@ -9,6 +8,7 @@ import { RangeControls } from '../components/RangeControls';
 import {
   Callout,
   Card,
+  LinkButton,
   PageHeader,
   Segmented,
   StatGrid,
@@ -34,7 +34,8 @@ import {
   useWorkouts,
 } from '../hooks/useData';
 import { usePref } from '../hooks/usePref';
-import { SERIES_COLORS } from '../lib/colors';
+import { ImportIcon, PrIcon, TrendIcon } from '../components/icons';
+import { CHART_PRIMARY } from '../lib/colors';
 
 type TotalMetric = 'volume' | 'sets' | 'workouts';
 
@@ -95,7 +96,18 @@ export default function DashboardPage() {
 
   return (
     <>
-      <PageHeader title="Dashboard" actions={<RangeControls range={range} onRange={setRange} />} />
+      <PageHeader
+        title="Dashboard"
+        actions={
+          <>
+            <RangeControls range={range} onRange={setRange} />
+            <LinkButton to="/import">
+              <ImportIcon />
+              Import
+            </LinkButton>
+          </>
+        }
+      />
 
       <SampleDataBanner />
       {review > 0 && (
@@ -136,7 +148,8 @@ export default function DashboardPage() {
 
       <div className="grid items-start gap-6 lg:grid-cols-5">
         <Card
-          className="lg:col-span-3"
+          className="min-w-0 lg:col-span-3"
+          icon={<TrendIcon />}
           title="Weekly training"
           subtitle={metric === 'volume' ? `Volume in ${unit}, assisted lifts excluded` : undefined}
           actions={
@@ -154,14 +167,19 @@ export default function DashboardPage() {
         >
           <StackedBars
             rows={weekly.map((w) => ({ period: w.period, value: w[metric] }))}
-            keys={[{ id: 'value', label: 'Total', color: SERIES_COLORS[0] ?? '' }]}
+            keys={[{ id: 'value', label: 'Total', color: CHART_PRIMARY }]}
             bucket="week"
             format={(v) => formatCompact(v)}
             height={260}
           />
         </Card>
 
-        <Card className="lg:col-span-2" title="Recent PRs" subtitle="Beats your previous best">
+        <Card
+          className="min-w-0 lg:col-span-2"
+          icon={<PrIcon />}
+          title="Recent PRs"
+          subtitle="Beats your previous best"
+        >
           <PrList
             prs={prs}
             limit={12}
@@ -171,16 +189,8 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <div className="mt-6 grid items-start gap-6 lg:grid-cols-5">
-        <div className="lg:col-span-3">
-          <StalledLifts
-            lifts={stalled}
-            unitFor={(name) => exerciseUnit(exercises.get(name), unit)}
-          />
-        </div>
-        <div className="lg:col-span-2">
-          <BodyweightCard />
-        </div>
+      <div className="mt-6">
+        <StalledLifts lifts={stalled} unitFor={(name) => exerciseUnit(exercises.get(name), unit)} />
       </div>
     </>
   );

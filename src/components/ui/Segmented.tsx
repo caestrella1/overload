@@ -21,7 +21,7 @@ export function Segmented<T extends string>({
     <div
       role="radiogroup"
       aria-label={label}
-      className="inline-flex flex-wrap rounded-lg border border-border bg-surface-2 p-0.5"
+      className="inline-flex flex-wrap rounded-full border border-border bg-surface-2 p-0.5"
     >
       {options.map((o) => (
         <button
@@ -34,7 +34,7 @@ export function Segmented<T extends string>({
             onChange(o.id);
           }}
           className={cx(
-            'focus-ring rounded-md px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-40',
+            'focus-ring rounded-full px-3 py-1 text-xs font-medium transition-colors disabled:opacity-40',
             value === o.id ? 'bg-surface text-ink shadow-sm' : 'text-ink-2 hover:text-ink',
           )}
         >

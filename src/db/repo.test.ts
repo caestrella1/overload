@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { parseFile } from '../importers';
+import { parseFile, parseMapped } from '../importers';
+import { readCsv } from '../importers/csv';
+import { guessMapping } from '../importers/mapping';
 import { createDb, type OverloadDB } from './db';
 import {
   aliasMap,
@@ -9,6 +11,7 @@ import {
   clearAllData,
   commitImport,
   confirmSuggestedMuscles,
+  countSuggestions,
   countRemovals,
   exportBackup,
   findDuplicateSets,
@@ -145,10 +148,24 @@ describe('clear, backup and restore', () => {
 });
 
 describe('confirmSuggestedMuscles', () => {
-  it('promotes suggestions to user assignments', async () => {
+  it('accepts only confident suggestions by default', async () => {
     await importText(sample, 'h1');
+    const counts = await countSuggestions(db);
+    expect(counts.high).toBeGreaterThan(0);
+
     const changed = await confirmSuggestedMuscles(db);
-    expect(changed).toBe(4);
+    expect(changed).toBe(counts.high);
+    // The shakier guesses are left for review rather than quietly adopted.
+    expect(await db.exercises.where('muscleSource').equals('suggested').count()).toBe(
+      counts.medium + counts.low,
+    );
+    const accepted = await db.exercises.where('muscleSource').equals('user').first();
+    expect(accepted?.suggestionConfidence).toBeNull();
+  });
+
+  it('accepts the rest when asked', async () => {
+    await importText(sample, 'h1');
+    await confirmSuggestedMuscles(db, ['high', 'medium', 'low']);
     expect(await db.exercises.where('muscleSource').equals('suggested').count()).toBe(0);
   });
 });
@@ -364,5 +381,93 @@ describe('rename and merge exercises', () => {
     await importText(sample, 'h1');
     expect(await renameExercise(db, 'Running', 'Running')).toEqual({ moved: 0, merged: false });
     expect(await renameExercise(db, 'Running', '  ')).toEqual({ moved: 0, merged: false });
+  });
+});
+
+describe('provenance', () => {
+  const otherApp = [
+    'Date,Workout,Exercise,Weight,Reps',
+    '2020-05-01 09:00:00,Push,Barbell Bench Press,80,5',
+  ].join('\n');
+
+  const importOther = async (hash: string) => {
+    const csv = readCsv(otherApp);
+    const parsed = parseMapped(csv.rows, {
+      map: guessMapping(csv.headers),
+      unit: 'kg',
+      dateOrder: 'ymd',
+      source: 'custom:other',
+    });
+    return commitImport(db, parsed, { fileName: 'other.csv', fileHash: hash, updateChanged: true });
+  };
+
+  it('records the source and original name on every set, workout and exercise', async () => {
+    const record = await importText(sample, 'h1');
+    const set = await db.sets.filter((s) => s.exercise === 'Running').first();
+    expect(set).toMatchObject({
+      originSource: 'strong',
+      originName: 'Running',
+      originImportId: record.id,
+    });
+    const workout = await db.workouts.get('2019-01-30T18:02:00|Push');
+    expect(workout).toMatchObject({ originSource: 'strong', originName: 'Push' });
+    expect((await db.exercises.get('Running'))?.origins).toEqual([
+      { source: 'strong', name: 'Running', importId: record.id, firstSeen: record.importedAt },
+    ]);
+  });
+
+  it('keeps the first import as the origin when a later one updates the set', async () => {
+    const first = await importText(sample, 'h1');
+    const second = await importText(sample.replace('145.0,6.0', '145.0,7.0'), 'h2');
+    const set = await db.sets.filter((s) => s.weight === 145).first();
+    expect(set?.reps).toBe(7);
+    expect(set?.importId).toBe(second.id);
+    expect(set?.originImportId).toBe(first.id);
+  });
+
+  it('survives a rename: sets remember the name they arrived under', async () => {
+    await importText(sample, 'h1');
+    await renameExercise(db, 'Running', 'Treadmill Run');
+    const set = await db.sets.filter((s) => s.exercise === 'Treadmill Run').first();
+    expect(set?.originName).toBe('Running');
+    expect(set?.originSource).toBe('strong');
+  });
+
+  it('keeps every source name after merging across sources', async () => {
+    const strong = await importText(sample, 'h1');
+    const other = await importOther('h2');
+
+    await renameExercise(db, 'Barbell Bench Press', 'Bench Press (Barbell)');
+    const merged = await db.exercises.get('Bench Press (Barbell)');
+    expect(merged?.origins).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          source: 'strong',
+          name: 'Bench Press (Barbell)',
+          importId: strong.id,
+        }),
+        expect.objectContaining({
+          source: 'custom:other',
+          name: 'Barbell Bench Press',
+          importId: other.id,
+        }),
+      ]),
+    );
+
+    // Each set still points at the app and the name it came from.
+    const bySource = new Map(
+      (await db.sets.filter((s) => s.exercise === 'Bench Press (Barbell)').toArray()).map((s) => [
+        s.originSource,
+        s.originName,
+      ]),
+    );
+    expect(bySource.get('strong')).toBe('Bench Press (Barbell)');
+    expect(bySource.get('custom:other')).toBe('Barbell Bench Press');
+  });
+
+  it('does not duplicate an origin when the same file is imported twice', async () => {
+    await importText(sample, 'h1');
+    await importText(sample, 'h2');
+    expect((await db.exercises.get('Running'))?.origins).toHaveLength(1);
   });
 });

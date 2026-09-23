@@ -3,6 +3,7 @@ import { db } from '../../db/db';
 import { deleteSets, findDuplicateSets, type DuplicateGroup } from '../../db/repo';
 import { formatDate } from '../../domain/dates';
 import { formatNumber } from '../../domain/units';
+import { DeleteIcon, DuplicatesIcon, SearchIcon } from '../icons';
 import { Button, Callout, Card } from '../ui';
 
 export function DuplicatesCard() {
@@ -24,6 +25,7 @@ export function DuplicatesCard() {
 
   return (
     <Card
+      icon={<DuplicatesIcon />}
       title="Find duplicates"
       subtitle="Sets with the same workout time, exercise, position and values."
     >
@@ -54,9 +56,13 @@ export function DuplicatesCard() {
         </Callout>
       )}
       <div className="flex gap-2">
-        <Button onClick={() => void scan()}>Scan</Button>
+        <Button onClick={() => void scan()}>
+          <SearchIcon />
+          Scan
+        </Button>
         {extras > 0 && (
           <Button variant="danger" onClick={() => void remove()}>
+            <DeleteIcon />
             Remove {formatNumber(extras, 0)} extra copies
           </Button>
         )}

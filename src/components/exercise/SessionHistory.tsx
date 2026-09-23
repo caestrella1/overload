@@ -1,13 +1,35 @@
 import { useMemo, useState } from 'react';
 import { describeSet } from '../../domain/analysis';
 import { formatDate } from '../../domain/dates';
-import type { Unit, WorkoutSet } from '../../domain/types';
+import type { SetType, Unit, WorkoutSet } from '../../domain/types';
 import { cx } from '../../lib/cx';
-import { Button } from '../ui';
+import { MoreIcon } from '../icons';
+import { Badge, Button } from '../ui';
 
 const PAGE = 10;
 
-/** Sessions newest first, each set as a chip; warm-ups dashed, other set types labeled. */
+/** Warm-ups say so through the W in the number column, so they need no second label. */
+const TYPE_LABELS: Record<SetType, string | null> = {
+  normal: null,
+  warmup: null,
+  drop: 'Drop',
+  failure: 'To failure',
+};
+
+/**
+ * Numbers the working sets 1, 2, 3 in the order they were logged. Warm-ups keep a W
+ * instead of a number, so the numbering reads the way a working set is counted.
+ */
+function labelSets(list: WorkoutSet[]): { set: WorkoutSet; label: string }[] {
+  let working = 0;
+  return list.map((set) => {
+    if (set.setType === 'warmup') return { set, label: 'W' };
+    working += 1;
+    return { set, label: String(working) };
+  });
+}
+
+/** Sessions newest first, one row per set; warm-ups marked W, other set types labeled. */
 export function SessionHistory({ sets, unit }: { sets: WorkoutSet[]; unit: Unit }) {
   const [limit, setLimit] = useState(PAGE);
   const sessions = useMemo(() => {
@@ -36,11 +58,11 @@ export function SessionHistory({ sets, unit }: { sets: WorkoutSet[]; unit: Unit 
                   {first.workoutKey.split('|').slice(1).join('|')}
                 </span>
               </div>
-              <div className="tabular flex flex-wrap gap-1.5">
-                {list.map((s) => (
-                  <SetChip key={s.key} set={s} unit={unit} />
+              <ol className="tabular divide-y divide-border/60">
+                {labelSets(list).map(({ set, label }) => (
+                  <SetRow key={set.key} set={set} label={label} unit={unit} />
                 ))}
-              </div>
+              </ol>
             </li>
           );
         })}
@@ -52,6 +74,7 @@ export function SessionHistory({ sets, unit }: { sets: WorkoutSet[]; unit: Unit 
               setLimit((l) => l + PAGE * 2);
             }}
           >
+            <MoreIcon />
             Show more
           </Button>
         </div>
@@ -60,22 +83,30 @@ export function SessionHistory({ sets, unit }: { sets: WorkoutSet[]; unit: Unit 
   );
 }
 
-export function SetChip({ set, unit }: { set: WorkoutSet; unit: Unit }) {
+export function SetRow({ set, label, unit }: { set: WorkoutSet; label: string; unit: Unit }) {
+  const warmup = set.setType === 'warmup';
+  const typeLabel = TYPE_LABELS[set.setType];
   return (
-    <span
-      title={set.notes ?? undefined}
-      className={cx(
-        'rounded px-1.5 py-0.5 text-xs',
-        set.setType === 'warmup'
-          ? 'border border-dashed border-border text-ink-3'
-          : 'bg-surface-2 text-ink',
+    <li className="flex items-baseline gap-3 py-1 text-sm">
+      {/* Working sets carry the theme colour; warm-ups stay muted, so the ones that count stand out. */}
+      <span
+        className={cx(
+          'w-6 shrink-0 text-center text-xs font-semibold',
+          warmup ? 'text-ink-3' : 'text-accent',
+        )}
+      >
+        {label}
+      </span>
+      <span className={cx('min-w-0 shrink-0', warmup ? 'text-ink-3' : 'font-medium text-accent')}>
+        {describeSet(set, unit)}
+      </span>
+      {typeLabel && <span className="shrink-0 text-xs text-ink-2">{typeLabel}</span>}
+      {set.rpe != null && <Badge tone="neutral">RPE {set.rpe}</Badge>}
+      {set.notes && (
+        <span className="ml-auto min-w-0 truncate text-xs text-ink-3" title={set.notes}>
+          {set.notes}
+        </span>
       )}
-    >
-      {set.setType !== 'normal' && (
-        <span className="mr-1 font-semibold">{set.setType[0]?.toUpperCase()}</span>
-      )}
-      {describeSet(set, unit)}
-      {set.rpe != null && <span className="ml-1 text-ink-3">@{set.rpe}</span>}
-    </span>
+    </li>
   );
 }

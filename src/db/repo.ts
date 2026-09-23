@@ -1,11 +1,13 @@
 import { isBodyweightName, type BodyweightEntry } from '../domain/bodyweight';
 import { mergeSetsInto, resolveAlias } from '../domain/merge';
 import { parseExerciseName, isAssistedName } from '../domain/exerciseName';
-import { suggestMuscles } from '../domain/muscles';
+import { suggestForName } from '../domain/suggest';
 import {
   DEFAULT_SETTINGS,
   type Exercise,
   type ExerciseAlias,
+  type Confidence,
+  type SourceRef,
   type ImportRecord,
   type MuscleAssignment,
   type Settings,
@@ -62,7 +64,12 @@ export interface ImportPreview {
   plan: ImportPlan;
   /** A previous import of the byte-identical file, if any. */
   sameFile: ImportRecord | null;
-  newExercises: { name: string; muscles: MuscleAssignment | null; fromSource: boolean }[];
+  newExercises: {
+    name: string;
+    muscles: MuscleAssignment | null;
+    fromSource: boolean;
+    confidence: Confidence | null;
+  }[];
   newWorkouts: number;
   dateRange: [string, string] | null;
   sync: SyncPreview;
@@ -114,11 +121,15 @@ export async function previewImport(
   );
   const newExercises = parsed.exercises
     .filter((e) => !known.has(e.name))
-    .map((e) => ({
-      name: e.name,
-      muscles: e.muscles ?? suggestMuscles(e.name),
-      fromSource: !!e.muscles,
-    }));
+    .map((e) => {
+      const suggestion = e.muscles ? null : suggestForName(e.name);
+      return {
+        name: e.name,
+        muscles: e.muscles ?? suggestion?.muscles ?? null,
+        fromSource: !!e.muscles,
+        confidence: suggestion?.confidence ?? null,
+      };
+    });
 
   const workoutKeys = parsed.workouts.map((w) => w.key);
   const existingWorkouts = await db.workouts.where('key').anyOf(workoutKeys).primaryKeys();
@@ -142,8 +153,18 @@ function fileDateRange(parsed: ParseResult): [string, string] | null {
   return first && last ? [first, last] : null;
 }
 
+/** Adds a source reference unless that source already claims that name. */
+export function addOrigin(origins: SourceRef[], ref: SourceRef): SourceRef[] {
+  const known = origins.some((o) => o.source === ref.source && o.name === ref.name);
+  return known ? origins : [...origins, ref];
+}
+
 /** Builds or updates an exercise record, honoring muscle-source precedence: user > source > suggested. */
-export function mergeExercise(existing: Exercise | undefined, parsed: ParsedExercise): Exercise {
+export function mergeExercise(
+  existing: Exercise | undefined,
+  parsed: ParsedExercise,
+  origin?: SourceRef,
+): Exercise {
   const { baseName, equipment } = parseExerciseName(parsed.name);
   const base: Exercise = existing ?? {
     name: parsed.name,
@@ -155,16 +176,25 @@ export function mergeExercise(existing: Exercise | undefined, parsed: ParsedExer
     assisted: isAssistedName(parsed.name),
     bodyweight: isBodyweightName(parsed.name),
     bodyweightFactor: 1,
+    origins: [],
+    catalogId: null,
+    suggestionConfidence: null,
+    suggestionReason: null,
   };
   const next = { ...base };
+  if (origin) next.origins = addOrigin(next.origins, origin);
   if (parsed.muscles && next.muscleSource !== 'user') {
+    // The file said so itself, which beats anything we could infer.
     next.muscles = parsed.muscles;
     next.muscleSource = 'source';
   } else if (next.muscleSource === 'unassigned') {
-    const suggestion = suggestMuscles(parsed.name);
+    const suggestion = suggestForName(parsed.name);
     if (suggestion) {
-      next.muscles = suggestion;
+      next.muscles = suggestion.muscles;
       next.muscleSource = 'suggested';
+      next.catalogId = suggestion.catalogId;
+      next.suggestionConfidence = suggestion.confidence;
+      next.suggestionReason = suggestion.reason;
     }
   }
   if (parsed.unit && next.unit == null) next.unit = parsed.unit;
@@ -217,18 +247,51 @@ export async function commitImport(
     const importId = Number(await db.imports.add(record));
     record.id = importId;
 
-    await db.sets.bulkAdd(plan.toAdd.map((s): WorkoutSet => ({ ...s, importId })));
-    await db.sets.bulkPut(updates.map(({ id, set }): WorkoutSet => ({ ...set, id, importId })));
+    const origin = { source: parsed.source, importId, firstSeen: record.importedAt };
+    await db.sets.bulkAdd(
+      plan.toAdd.map((s): WorkoutSet => ({
+        ...s,
+        importId,
+        originSource: parsed.source,
+        originImportId: importId,
+      })),
+    );
+    // An update keeps the origin of the set it replaces: it is the same set, revised.
+    const storedById = new Map(found.map((s) => [s.id, s]));
+    await db.sets.bulkPut(
+      updates.map(({ id, set }): WorkoutSet => {
+        const previous = storedById.get(id);
+        return {
+          ...set,
+          id,
+          importId,
+          originSource: previous?.originSource ?? parsed.source,
+          originName: previous?.originName ?? set.originName,
+          originImportId: previous?.originImportId ?? importId,
+        };
+      }),
+    );
 
     const touched = new Set([...plan.toAdd, ...updates.map((u) => u.set)].map((s) => s.workoutKey));
     const touchedWorkouts = parsed.workouts.filter((w) => touched.has(w.key));
     const storedWorkouts = await db.workouts.bulkGet(touchedWorkouts.map((w) => w.key));
     await db.workouts.bulkPut(
-      touchedWorkouts.map((w, i) => ({ ...w, importId: storedWorkouts[i]?.importId ?? importId })),
+      touchedWorkouts.map((w, i): Workout => {
+        const previous = storedWorkouts[i];
+        return {
+          ...w,
+          importId: previous?.importId ?? importId,
+          originSource: previous?.originSource ?? parsed.source,
+          originName: previous?.originName ?? w.originName,
+          originImportId: previous?.originImportId ?? importId,
+        };
+      }),
     );
 
     const storedEx = await db.exercises.bulkGet(parsed.exercises.map((e) => e.name));
-    await db.exercises.bulkPut(parsed.exercises.map((e, i) => mergeExercise(storedEx[i], e)));
+    await db.exercises.bulkPut(
+      parsed.exercises.map((e, i) => mergeExercise(storedEx[i], e, { ...origin, name: e.name })),
+    );
 
     if (toRemove.length) {
       // Kept verbatim so undoing this import puts them back, workouts included:
@@ -342,7 +405,9 @@ export async function updateExercise(
   name: string,
   patch: Partial<Omit<Exercise, 'name'>>,
 ): Promise<void> {
-  await db.exercises.update(name, patch);
+  // Once you set the muscles yourself there is no suggestion left to rate.
+  const settled = patch.muscleSource === 'user' ? { suggestionConfidence: null } : {};
+  await db.exercises.update(name, { ...patch, ...settled });
 }
 
 export async function findProfile(
@@ -416,10 +481,17 @@ export async function renameExercise(
     await db.sets.bulkDelete(affected.map((s) => s.id ?? -1));
     await db.sets.bulkAdd(rekeyed);
 
-    if (!merged && source) {
-      await db.exercises.put({ ...source, name: target });
+    if (source) {
+      // Provenance is cumulative: the merged exercise remembers every name it answers to.
+      const origins = (existing?.origins ?? []).concat(source.origins);
+      // Merging keeps the target's own settings; renaming carries the source record over.
+      const kept = existing ?? { ...source, name: target };
+      await db.exercises.put({
+        ...kept,
+        origins: origins.reduce<SourceRef[]>((acc, o) => addOrigin(acc, o), []),
+      });
+      await db.exercises.delete(from);
     }
-    if (source) await db.exercises.delete(from);
 
     await db.aliases.put({ from, to: target, createdAt: new Date().toISOString() });
     // Anything that already pointed at the old name now points at the new one.
@@ -468,9 +540,31 @@ export async function deleteBodyweight(db: OverloadDB, id: number): Promise<void
   await db.bodyweights.delete(id);
 }
 
-/** Accepts every suggested muscle assignment as the user's own. Returns how many changed. */
-export async function confirmSuggestedMuscles(db: OverloadDB): Promise<number> {
-  return db.exercises.where('muscleSource').equals('suggested').modify({ muscleSource: 'user' });
+/**
+ * Accepts suggested muscle assignments as the user's own. Only the confidences asked for,
+ * so a bulk accept never quietly adopts a guess the app itself flagged as shaky.
+ */
+export async function confirmSuggestedMuscles(
+  db: OverloadDB,
+  accept: Confidence[] = ['high'],
+): Promise<number> {
+  return db.exercises
+    .where('muscleSource')
+    .equals('suggested')
+    .filter((e) => accept.includes(e.suggestionConfidence ?? 'medium'))
+    .modify({ muscleSource: 'user', suggestionConfidence: null });
+}
+
+/** Exercises still showing a guess, grouped by how far it can be trusted. */
+export async function countSuggestions(db: OverloadDB): Promise<Record<Confidence, number>> {
+  const counts: Record<Confidence, number> = { high: 0, medium: 0, low: 0 };
+  await db.exercises
+    .where('muscleSource')
+    .equals('suggested')
+    .each((e) => {
+      counts[e.suggestionConfidence ?? 'medium']++;
+    });
+  return counts;
 }
 
 export async function clearAllData(db: OverloadDB, opts: { keepSettings: boolean }): Promise<void> {

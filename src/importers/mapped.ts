@@ -67,6 +67,7 @@ export function parseMapped(rows: CsvRow[], opts: MappedOptions): ParseResult {
         key: workoutKey,
         date,
         name: workoutName,
+        originName: workoutName,
         durationSec: parseDuration(cell(row, map.duration ?? null)),
         notes: null,
       };
@@ -119,6 +120,7 @@ export function parseMapped(rows: CsvRow[], opts: MappedOptions): ParseResult {
       workoutKey,
       date,
       exercise,
+      originName: exercise,
       setLabel,
       setIndex,
     });

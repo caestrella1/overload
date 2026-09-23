@@ -81,7 +81,7 @@ export default function ComparePage() {
       <Card className="mb-6">
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {slots.map((name, i) => (
-            <div key={i} className="flex items-center gap-2">
+            <div key={i} className="flex min-w-0 items-center gap-2">
               <Swatch color={SERIES_COLORS[i] ?? ''} />
               <Select
                 label={`Exercise ${i + 1}`}

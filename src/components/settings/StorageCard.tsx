@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { formatNumber } from '../../domain/units';
 import { requestPersistence, storageInfo } from '../../lib/persistence';
+import { PersistIcon, StorageIcon } from '../icons';
 import { Button, Card } from '../ui';
 
 export function StorageCard() {
@@ -17,7 +18,7 @@ export function StorageCard() {
   }, []);
   if (!info) return null;
   return (
-    <Card title="Storage">
+    <Card icon={<StorageIcon />} title="Storage">
       <p className="text-sm text-ink-2">
         Using about {formatNumber(info.usage / 1024 / 1024, 1)} MB.{' '}
         {info.persisted
@@ -31,6 +32,7 @@ export function StorageCard() {
             void requestPersistence().then(refresh);
           }}
         >
+          <PersistIcon />
           Request persistent storage
         </Button>
       )}

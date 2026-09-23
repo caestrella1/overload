@@ -3,6 +3,7 @@ import type { StalledLift } from '../domain/stalled';
 import type { Unit } from '../domain/types';
 import { formatNumber } from '../domain/units';
 import { ExerciseLink } from './ExerciseLink';
+import { StalledIcon } from './icons';
 import { Card, DataTable, Muted } from './ui';
 
 /**
@@ -20,6 +21,7 @@ export function StalledLifts({
 }) {
   return (
     <Card
+      icon={<StalledIcon />}
       title="Not moving lately"
       subtitle="Still being trained, but no new estimated 1RM in over six weeks."
     >

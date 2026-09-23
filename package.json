@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:themes": "node scripts/build-themes.mjs",
     "build:demo": "tsc -b && VITE_DEMO=1 VITE_BASE=./ vite build --outDir dist-demo",
     "preview": "vite preview",
     "typecheck": "tsc -b",
@@ -20,6 +21,7 @@
   "dependencies": {
     "dexie": "^4.4.6",
     "dexie-react-hooks": "^4.4.0",
+    "iconoir-react": "^7.12.1",
     "papaparse": "^5.7.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",

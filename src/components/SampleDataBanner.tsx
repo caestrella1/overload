@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useSampleImport } from '../hooks/useSampleData';
+import { DeleteIcon } from './icons';
 import { Button, Callout } from './ui';
 
 // Demo builds are the hosted preview; a real deployment keeps data like any other site.
@@ -32,6 +33,7 @@ export function SampleDataBanner() {
             });
           }}
         >
+          <DeleteIcon />
           Remove sample data
         </Button>
       </div>

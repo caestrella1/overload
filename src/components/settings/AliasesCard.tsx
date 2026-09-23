@@ -1,6 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db/db';
 import { deleteAlias, listAliases } from '../../db/repo';
+import { AliasIcon, DeleteIcon } from '../icons';
 import { Button, Card, DataTable, Muted } from '../ui';
 
 /** Renames and merges, kept so later imports of the old name follow them. */
@@ -9,7 +10,11 @@ export function AliasesCard() {
   if (!aliases?.length) return null;
 
   return (
-    <Card title="Renamed exercises" subtitle="An import using the old name lands on the new one.">
+    <Card
+      icon={<AliasIcon />}
+      title="Renamed exercises"
+      subtitle="An import using the old name lands on the new one."
+    >
       <DataTable
         minWidth={420}
         rows={aliases}
@@ -28,6 +33,7 @@ export function AliasesCard() {
                   void deleteAlias(db, a.from);
                 }}
               >
+                <DeleteIcon />
                 Forget
               </Button>
             ),

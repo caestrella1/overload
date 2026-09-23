@@ -23,6 +23,9 @@ export type MuscleGroup =
   | 'Cardio'
   | 'Full Body';
 
+/** How much to trust a muscle suggestion. See domain/suggest.ts. */
+export type Confidence = 'high' | 'medium' | 'low';
+
 export interface MuscleAssignment {
   primary: MuscleGroup[];
   secondary: MuscleGroup[];
@@ -37,8 +40,22 @@ export interface MuscleAssignment {
  */
 export type MuscleSource = 'source' | 'user' | 'suggested' | 'unassigned';
 
+/**
+ * Where a record came from, kept verbatim so it survives renames, merges and links.
+ * The app can always answer "which app called this what, and when did it arrive".
+ */
+export interface SourceRef {
+  /** Import source id, e.g. "strong" or "custom:ab12cd34". */
+  source: string;
+  /** The name that source used, before any rename or merge. */
+  name: string;
+  /** The import that first brought it in. May dangle once that import is undone. */
+  importId: number;
+  firstSeen: string;
+}
+
 export interface Exercise {
-  /** Exercise name exactly as it appears in the source, e.g. "Bench Press (Barbell)". */
+  /** Current name. Also the primary key, so renames rewrite it. */
   name: string;
   baseName: string;
   equipment: string | null;
@@ -52,11 +69,28 @@ export interface Exercise {
   bodyweight: boolean;
   /** Share of bodyweight the lift actually moves: 1 for a pull-up, less for a push-up. */
   bodyweightFactor: number;
+  /** Every source name that feeds this exercise, gaining an entry on each merge. */
+  origins: SourceRef[];
+  /**
+   * Entry in the bundled exercise catalogue this was matched to. A classification link
+   * only: identity always stays with the name the source used.
+   */
+  catalogId: string | null;
+  /** How much to trust the suggested muscles. Absent once you set them yourself. */
+  suggestionConfidence: Confidence | null;
+  /** Why the suggestion came out the way it did, shown on the exercise page. */
+  suggestionReason: string | null;
 }
 
 export interface Workout {
   /** Stable identity: `${date}|${name}`. */
   key: string;
+  /** Import source this workout arrived from. Never rewritten. */
+  originSource: string;
+  /** Workout name as the source wrote it. Never rewritten. */
+  originName: string;
+  /** The import that first brought it in. May dangle once that import is undone. */
+  originImportId: number;
   /** Local timestamp, "YYYY-MM-DDTHH:mm:ss" (no timezone, as logged). */
   date: string;
   name: string;
@@ -67,6 +101,15 @@ export interface Workout {
 
 export interface WorkoutSet {
   id?: number;
+  /** Import source this set arrived from. Never rewritten. */
+  originSource: string;
+  /**
+   * Exercise name as the source wrote it. Kept because `exercise` is rewritten by
+   * renames and merges, so this is the only record of which name the set arrived under.
+   */
+  originName: string;
+  /** The import that first brought it in; `importId` is the one that last touched it. */
+  originImportId: number;
   /** Identity used for dedupe: date, exercise, set order and occurrence. */
   key: string;
   /** Hash of the logged values; differs when a set was edited in the source app. */

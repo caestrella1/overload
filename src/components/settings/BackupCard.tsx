@@ -4,6 +4,7 @@ import { exportBackup, isBackup, restoreBackup, type Backup } from '../../db/rep
 import { formatNumber } from '../../domain/units';
 import { downloadFile } from '../../lib/download';
 import { errorMessage } from '../../lib/errors';
+import { BackupIcon, DownloadIcon, RestoreIcon } from '../icons';
 import { Button, Callout, Card, ConfirmDialog, FileButton } from '../ui';
 
 interface Message {
@@ -46,13 +47,18 @@ export function BackupCard() {
 
   return (
     <Card
+      icon={<BackupIcon />}
       title="Backup & restore"
       subtitle="A JSON file with all workouts, exercises and settings."
     >
       {message && <Callout className="mb-3" tone={message.tone} title={message.text} />}
       <div className="flex flex-wrap gap-2">
-        <Button onClick={() => void download()}>Download backup</Button>
+        <Button onClick={() => void download()}>
+          <DownloadIcon />
+          Download backup
+        </Button>
         <FileButton accept=".json,application/json" onFile={(f) => void pick(f)}>
+          <RestoreIcon />
           Restore from file…
         </FileButton>
       </div>
