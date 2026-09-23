@@ -2,21 +2,28 @@ import { db } from '../../db/db';
 import { updateExercise } from '../../db/repo';
 import type { Exercise, Unit } from '../../domain/types';
 import { MuscleEditor } from '../MuscleEditor';
+import { RenameExercise } from './RenameExercise';
 import { Card, Checkbox, FieldRow, Select, TextInput } from '../ui';
 
 export function ExerciseSettingsCard({
   exercise,
   defaultUnit,
   hasBodyweightLog,
+  names,
+  setCount,
 }: {
   exercise: Exercise;
   defaultUnit: Unit;
   /** Bodyweight options only do something once some bodyweight is logged. */
   hasBodyweightLog: boolean;
+  /** Every exercise name, for the rename field's suggestions. */
+  names: string[];
+  setCount: number;
 }) {
   const update = (patch: Partial<Exercise>) => void updateExercise(db, exercise.name, patch);
   return (
     <Card title="Exercise settings">
+      <RenameExercise exercise={exercise} names={names} setCount={setCount} />
       <FieldRow label="Weights logged in" hint="Charts for this exercise use this unit.">
         <Select<'default' | Unit>
           label="Weight unit"

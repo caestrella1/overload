@@ -3,6 +3,8 @@ import { resolve } from 'node:path';
 import { parseFile } from '../importers';
 import { createDb, type OverloadDB } from './db';
 import {
+  aliasMap,
+  applyAliases,
   type Backup,
   clearAllData,
   commitImport,
@@ -15,6 +17,7 @@ import {
   loadSettings,
   previewImport,
   readFlag,
+  renameExercise,
   restoreBackup,
   saveProfile,
   saveSettings,
@@ -312,5 +315,54 @@ describe('mapping profiles', () => {
 
     await restoreBackup(db, JSON.parse(JSON.stringify(backup)) as Backup);
     expect((await listProfiles(db))[0]?.name).toBe('Hevy');
+  });
+});
+
+describe('rename and merge exercises', () => {
+  it('renames an exercise and carries its sets across', async () => {
+    await importText(sample, 'h1');
+    const before = await db.sets.filter((s) => s.exercise === 'Running').count();
+
+    const result = await renameExercise(db, 'Running', 'Treadmill Run');
+    expect(result).toEqual({ moved: before, merged: false });
+    expect(await db.exercises.get('Running')).toBeUndefined();
+    expect(await db.exercises.get('Treadmill Run')).toBeTruthy();
+    expect(await db.sets.filter((s) => s.exercise === 'Running').count()).toBe(0);
+    expect(await db.sets.filter((s) => s.exercise === 'Treadmill Run').count()).toBe(before);
+  });
+
+  it('merges into an existing exercise without key collisions', async () => {
+    await importText(sample, 'h1');
+    const bench = await db.sets.filter((s) => s.exercise === 'Bench Press (Barbell)').count();
+    const rows = await db.sets.filter((s) => s.exercise === 'Bent Over Row (Dumbbell)').count();
+
+    const result = await renameExercise(db, 'Bent Over Row (Dumbbell)', 'Bench Press (Barbell)');
+    expect(result.merged).toBe(true);
+    expect(await db.sets.filter((s) => s.exercise === 'Bench Press (Barbell)').count()).toBe(
+      bench + rows,
+    );
+    const keys = (await db.sets.toArray()).map((s) => s.key);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it('re-importing the old name follows the rename instead of recreating it', async () => {
+    await importText(sample, 'h1');
+    await renameExercise(db, 'Running', 'Treadmill Run');
+
+    const parsed = applyAliases(parseFile(sample), await aliasMap(db));
+    expect(parsed.exercises.map((e) => e.name)).toContain('Treadmill Run');
+    expect(parsed.exercises.map((e) => e.name)).not.toContain('Running');
+
+    // And the renamed sets are recognised as already stored.
+    const preview = await previewImport(db, parsed, 'h2');
+    expect(preview.plan.toAdd).toHaveLength(0);
+    await commitImport(db, parsed, { fileName: 'again.csv', fileHash: 'h2', updateChanged: true });
+    expect(await db.exercises.get('Running')).toBeUndefined();
+  });
+
+  it('refuses a no-op rename', async () => {
+    await importText(sample, 'h1');
+    expect(await renameExercise(db, 'Running', 'Running')).toEqual({ moved: 0, merged: false });
+    expect(await renameExercise(db, 'Running', '  ')).toEqual({ moved: 0, merged: false });
   });
 });

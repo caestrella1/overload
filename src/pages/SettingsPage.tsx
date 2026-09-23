@@ -1,3 +1,4 @@
+import { AliasesCard } from '../components/settings/AliasesCard';
 import { BackupCard } from '../components/settings/BackupCard';
 import { ClearDataCard } from '../components/settings/ClearDataCard';
 import { DuplicatesCard } from '../components/settings/DuplicatesCard';
@@ -18,6 +19,7 @@ export default function SettingsPage() {
         <div className="space-y-6">
           <StorageCard />
           <FormatsCard />
+          <AliasesCard />
           <DuplicatesCard />
           <BackupCard />
           <ClearDataCard />

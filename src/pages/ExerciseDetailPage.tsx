@@ -170,6 +170,8 @@ export default function ExerciseDetailPage() {
           exercise={ex}
           defaultUnit={settings.defaultUnit}
           hasBodyweightLog={bodyweights.length > 0}
+          names={[...exercises.keys()]}
+          setCount={sets.length}
         />
       </div>
 

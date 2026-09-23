@@ -1,3 +1,4 @@
+import { nextKey, type OccurrenceCounts } from '../domain/identity';
 import type { MuscleAssignment, Unit } from '../domain/types';
 import {
   cell,
@@ -32,7 +33,7 @@ export function parseMapped(rows: CsvRow[], opts: MappedOptions): ParseResult {
   const exercises = new Map<string, ParsedExercise>();
   const sets: ParsedSet[] = [];
   const blockIndex = new Map<string, number>();
-  const occurrences = new Map<string, number>();
+  const occurrences: OccurrenceCounts = new Map();
   const warnings: string[] = [];
   let skippedRows = 0;
   let badDates = 0;
@@ -100,10 +101,6 @@ export function parseMapped(rows: CsvRow[], opts: MappedOptions): ParseResult {
       }
     }
 
-    const identity = `${date}|${exercise}|${setLabel}`;
-    const occurrence = (occurrences.get(identity) ?? 0) + 1;
-    occurrences.set(identity, occurrence);
-
     const distance = parseNumber(cell(row, map.distance ?? null));
     const seconds = parseNumber(cell(row, map.seconds ?? null));
     const base = {
@@ -117,7 +114,7 @@ export function parseMapped(rows: CsvRow[], opts: MappedOptions): ParseResult {
     };
     sets.push({
       ...base,
-      key: `${identity}|${occurrence}`,
+      key: nextKey(occurrences, date, exercise, setLabel),
       contentHash: contentHash(base),
       workoutKey,
       date,

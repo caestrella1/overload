@@ -103,6 +103,13 @@ export interface ImportRecord {
   dateRange: [string, string] | null;
 }
 
+/** A renamed or merged-away exercise name, and what it became. */
+export interface ExerciseAlias {
+  from: string;
+  to: string;
+  createdAt: string;
+}
+
 export type E1rmFormula = 'epley' | 'brzycki';
 
 export interface Settings {

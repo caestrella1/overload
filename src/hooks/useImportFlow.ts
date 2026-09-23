@@ -1,6 +1,8 @@
 import { useCallback, useState } from 'react';
 import { db } from '../db/db';
 import {
+  aliasMap,
+  applyAliases,
   commitImport,
   findProfile,
   previewImport,
@@ -60,13 +62,12 @@ export type MappingState = Extract<ImportState, { step: 'mapping' }>;
 export function useImportFlow(defaultUnit: 'lb' | 'kg' = 'lb') {
   const [state, setState] = useState<ImportState>({ step: 'idle' });
 
-  const toPreview = useCallback(
-    async (parsed: ParseResult, meta: FileMeta, mappedWith?: string) => {
-      const preview = await previewImport(db, parsed, meta.fileHash);
-      setState({ step: 'preview', parsed, preview, mappedWith, ...meta });
-    },
-    [],
-  );
+  const toPreview = useCallback(async (raw: ParseResult, meta: FileMeta, mappedWith?: string) => {
+    // Exercises renamed or merged here keep their new name when re-imported.
+    const parsed = applyAliases(raw, await aliasMap(db));
+    const preview = await previewImport(db, parsed, meta.fileHash);
+    setState({ step: 'preview', parsed, preview, mappedWith, ...meta });
+  }, []);
 
   const load = useCallback(
     async (fileName: string, text: string) => {

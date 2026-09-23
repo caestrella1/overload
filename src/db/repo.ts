@@ -1,9 +1,11 @@
 import { isBodyweightName, type BodyweightEntry } from '../domain/bodyweight';
+import { mergeSetsInto, resolveAlias } from '../domain/merge';
 import { parseExerciseName, isAssistedName } from '../domain/exerciseName';
 import { suggestMuscles } from '../domain/muscles';
 import {
   DEFAULT_SETTINGS,
   type Exercise,
+  type ExerciseAlias,
   type ImportRecord,
   type MuscleAssignment,
   type Settings,
@@ -19,10 +21,11 @@ import {
 } from '../importers/plan';
 import type { MappingProfile } from '../importers/mapping';
 import type { ParseResult, ParsedExercise } from '../importers/types';
+import { nextKey } from '../domain/identity';
 import type { OverloadDB, RemovalRow } from './db';
 
 const SETTINGS_KEY = 'settings';
-export const BACKUP_VERSION = 4;
+export const BACKUP_VERSION = 5;
 
 export async function loadSettings(db: OverloadDB): Promise<Settings> {
   const row = await db.meta.get(SETTINGS_KEY);
@@ -374,6 +377,78 @@ export async function deleteProfile(db: OverloadDB, id: number): Promise<void> {
   await db.profiles.delete(id);
 }
 
+export function listAliases(db: OverloadDB): Promise<ExerciseAlias[]> {
+  return db.aliases.toArray();
+}
+
+export async function aliasMap(db: OverloadDB): Promise<Map<string, string>> {
+  return new Map((await db.aliases.toArray()).map((a) => [a.from, a.to]));
+}
+
+export async function deleteAlias(db: OverloadDB, from: string): Promise<void> {
+  await db.aliases.delete(from);
+}
+
+/**
+ * Renames an exercise, or folds it into another one when the target already exists.
+ * Sets move across with fresh identities, and the old name is remembered so a later
+ * import of it follows the rename instead of recreating the exercise.
+ */
+export async function renameExercise(
+  db: OverloadDB,
+  from: string,
+  to: string,
+): Promise<{ moved: number; merged: boolean }> {
+  const target = to.trim();
+  if (!target || target === from) return { moved: 0, merged: false };
+
+  const tables = [db.sets, db.exercises, db.aliases];
+  return db.transaction('rw', tables, async () => {
+    const [source, existing] = await Promise.all([
+      db.exercises.get(from),
+      db.exercises.get(target),
+    ]);
+    const merged = !!existing;
+
+    // Re-key the target's own sets too: numbering spans both exercises once they are one.
+    const affected = await db.sets.where('exercise').anyOf([from, target]).toArray();
+    const rekeyed = mergeSetsInto(affected, target);
+    await db.sets.bulkDelete(affected.map((s) => s.id ?? -1));
+    await db.sets.bulkAdd(rekeyed);
+
+    if (!merged && source) {
+      await db.exercises.put({ ...source, name: target });
+    }
+    if (source) await db.exercises.delete(from);
+
+    await db.aliases.put({ from, to: target, createdAt: new Date().toISOString() });
+    // Anything that already pointed at the old name now points at the new one.
+    await db.aliases.where('to').equals(from).modify({ to: target });
+
+    return { moved: rekeyed.filter((s) => s.exercise === target).length, merged };
+  });
+}
+
+/**
+ * Applies stored renames to a freshly parsed file, so an export still using an old
+ * exercise name lands on the merged one instead of resurrecting it.
+ */
+export function applyAliases(parsed: ParseResult, aliases: Map<string, string>): ParseResult {
+  if (!aliases.size) return parsed;
+  const rename = (name: string) => resolveAlias(aliases, name);
+  if (!parsed.exercises.some((e) => rename(e.name) !== e.name)) return parsed;
+
+  const counts = new Map<string, number>();
+  const sets = parsed.sets.map((s) => {
+    const exercise = rename(s.exercise);
+    return { ...s, exercise, key: nextKey(counts, s.date, exercise, s.setLabel) };
+  });
+  const exercises = new Map(
+    parsed.exercises.map((e) => [rename(e.name), { ...e, name: rename(e.name) }]),
+  );
+  return { ...parsed, sets, exercises: [...exercises.values()] };
+}
+
 export function listBodyweights(db: OverloadDB): Promise<BodyweightEntry[]> {
   return db.bodyweights.orderBy('date').toArray();
 }
@@ -409,6 +484,7 @@ export async function clearAllData(db: OverloadDB, opts: { keepSettings: boolean
       db.removals,
       db.profiles,
       db.bodyweights,
+      db.aliases,
       db.meta,
     ],
     async () => {
@@ -427,6 +503,7 @@ export async function clearAllData(db: OverloadDB, opts: { keepSettings: boolean
           db.exercises.clear(),
           db.profiles.clear(),
           db.bodyweights.clear(),
+          db.aliases.clear(),
           db.meta.clear(),
         ]);
       }
@@ -449,10 +526,12 @@ export interface Backup {
   profiles?: MappingProfile[];
   /** Logged bodyweight. Absent before v4. */
   bodyweights?: BodyweightEntry[];
+  /** Renamed and merged exercise names. Absent before v5. */
+  aliases?: ExerciseAlias[];
 }
 
 export async function exportBackup(db: OverloadDB): Promise<Backup> {
-  const [settings, exercises, workouts, sets, imports, removals, profiles, bodyweights] =
+  const [settings, exercises, workouts, sets, imports, removals, profiles, bodyweights, aliases] =
     await Promise.all([
       loadSettings(db),
       db.exercises.toArray(),
@@ -462,6 +541,7 @@ export async function exportBackup(db: OverloadDB): Promise<Backup> {
       db.removals.toArray(),
       db.profiles.toArray(),
       db.bodyweights.toArray(),
+      db.aliases.toArray(),
     ]);
   return {
     app: 'overload',
@@ -475,6 +555,7 @@ export async function exportBackup(db: OverloadDB): Promise<Backup> {
     removals,
     profiles,
     bodyweights,
+    aliases,
   };
 }
 
@@ -506,6 +587,7 @@ export async function restoreBackup(db: OverloadDB, backup: Backup): Promise<voi
       db.removals,
       db.profiles,
       db.bodyweights,
+      db.aliases,
       db.meta,
     ],
     async () => {
@@ -517,6 +599,7 @@ export async function restoreBackup(db: OverloadDB, backup: Backup): Promise<voi
         db.removals.clear(),
         db.profiles.clear(),
         db.bodyweights.clear(),
+        db.aliases.clear(),
         db.meta.clear(),
       ]);
       await db.meta.put({ key: SETTINGS_KEY, value: { ...DEFAULT_SETTINGS, ...backup.settings } });
@@ -527,6 +610,7 @@ export async function restoreBackup(db: OverloadDB, backup: Backup): Promise<voi
       await db.removals.bulkPut(backup.removals ?? []);
       await db.profiles.bulkPut(backup.profiles ?? []);
       await db.bodyweights.bulkPut(backup.bodyweights ?? []);
+      await db.aliases.bulkPut(backup.aliases ?? []);
     },
   );
 }

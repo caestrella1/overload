@@ -1,5 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie';
 import { isBodyweightName, type BodyweightEntry } from '../domain/bodyweight';
+import type { ExerciseAlias } from '../domain/types';
 import type { MappingProfile } from '../importers/mapping';
 import type { Exercise, ImportRecord, Workout, WorkoutSet } from '../domain/types';
 
@@ -25,6 +26,7 @@ export type OverloadDB = Dexie & {
   removals: EntityTable<RemovalRow, 'id'>;
   profiles: EntityTable<MappingProfile, 'id'>;
   bodyweights: EntityTable<BodyweightEntry, 'id'>;
+  aliases: EntityTable<ExerciseAlias, 'from'>;
   meta: EntityTable<MetaRow, 'key'>;
 };
 
@@ -62,6 +64,8 @@ export function createDb(name = 'overload'): OverloadDB {
           e.bodyweightFactor = 1;
         }),
     );
+  // v5 remembers renamed and merged exercises, so later imports follow the rename.
+  db.version(5).stores({ aliases: '&from, to' });
   return db;
 }
 
