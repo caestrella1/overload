@@ -90,6 +90,30 @@ export interface MetricOptions {
   formula: E1rmFormula;
 }
 
+/**
+ * Turns a logged weight into the load actually moved, for lifts that carry your own
+ * weight. Supplied only when bodyweight is known, so the fallbacks stay untouched otherwise.
+ */
+export interface BodyweightLoad {
+  /** Bodyweight on a date, already in the unit the stats are computed in. */
+  at: (date: string) => number | null;
+  factor: number;
+  /** Logged weight is assistance taken off, rather than load added. */
+  assisted: boolean;
+}
+
+/**
+ * Weight actually moved by a set, in the stats' unit: the logged weight, plus the share of
+ * bodyweight the lift carries (or minus the assistance taken off).
+ */
+export function effectiveLoad(set: WorkoutSet, scale: number, bodyweight?: BodyweightLoad): number {
+  const logged = (set.weight ?? 0) * scale;
+  if (!bodyweight) return logged;
+  const bw = bodyweight.at(set.date);
+  if (bw == null) return logged;
+  return Math.max(0, bw * bodyweight.factor + (bodyweight.assisted ? -logged : logged));
+}
+
 /** A set counts if it's a working set with something logged. */
 export function isWorkingSet(s: WorkoutSet, includeWarmups: boolean): boolean {
   if (!includeWarmups && s.setType === 'warmup') return false;
@@ -118,9 +142,11 @@ export interface SessionStat {
  */
 export function sessionStats(
   sets: WorkoutSet[],
-  opts: MetricOptions & { assisted?: boolean; scale?: number },
+  opts: MetricOptions & { assisted?: boolean; scale?: number; bodyweight?: BodyweightLoad },
 ): SessionStat[] {
   const scale = opts.scale ?? 1;
+  // With bodyweight known, an assisted lift becomes an ordinary higher-is-better load.
+  const assisted = opts.bodyweight ? false : opts.assisted;
   const groups = new Map<string, WorkoutSet[]>();
   for (const s of sets) {
     if (!isWorkingSet(s, opts.includeWarmups)) continue;
@@ -153,7 +179,7 @@ export function sessionStats(
     let rpeCount = 0;
     for (const s of list) {
       const reps = s.reps ?? 0;
-      const weight = (s.weight ?? 0) * scale;
+      const weight = effectiveLoad(s, scale, opts.bodyweight);
       stat.reps += reps;
       stat.distance += s.distance ?? 0;
       stat.duration += s.seconds ?? 0;
@@ -163,7 +189,7 @@ export function sessionStats(
         rpeCount++;
       }
       if (reps <= 0 || weight <= 0) continue;
-      if (opts.assisted) {
+      if (assisted) {
         // Less assistance is better; volume and e1RM of assistance are meaningless.
         if (stat.topWeight == null || weight < stat.topWeight) {
           stat.topWeight = weight;

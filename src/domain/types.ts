@@ -48,6 +48,10 @@ export interface Exercise {
   unit: Unit | null;
   /** Weight is assistance (lower = harder), e.g. "Pull Up (Assisted)". */
   assisted: boolean;
+  /** The lift moves your own weight, so logged weight is what you added or took off. */
+  bodyweight: boolean;
+  /** Share of bodyweight the lift actually moves: 1 for a pull-up, less for a push-up. */
+  bodyweightFactor: number;
 }
 
 export interface Workout {

@@ -1,4 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie';
+import { isBodyweightName, type BodyweightEntry } from '../domain/bodyweight';
 import type { MappingProfile } from '../importers/mapping';
 import type { Exercise, ImportRecord, Workout, WorkoutSet } from '../domain/types';
 
@@ -23,6 +24,7 @@ export type OverloadDB = Dexie & {
   imports: EntityTable<ImportRecord, 'id'>;
   removals: EntityTable<RemovalRow, 'id'>;
   profiles: EntityTable<MappingProfile, 'id'>;
+  bodyweights: EntityTable<BodyweightEntry, 'id'>;
   meta: EntityTable<MetaRow, 'key'>;
 };
 
@@ -48,6 +50,18 @@ export function createDb(name = 'overload'): OverloadDB {
     );
   // v3 adds saved column mappings for CSV layouts the app has no built-in importer for.
   db.version(3).stores({ profiles: '++id, &signature, lastUsedAt' });
+  // v4 logs bodyweight, so lifts that carry it can report the load actually moved.
+  db.version(4)
+    .stores({ bodyweights: '++id, &date' })
+    .upgrade((tx) =>
+      tx
+        .table<Exercise>('exercises')
+        .toCollection()
+        .modify((e) => {
+          e.bodyweight = isBodyweightName(e.name);
+          e.bodyweightFactor = 1;
+        }),
+    );
   return db;
 }
 

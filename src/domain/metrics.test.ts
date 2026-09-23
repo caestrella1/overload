@@ -151,6 +151,8 @@ describe('muscleSeries', () => {
     muscleSource: 'user',
     unit: null,
     assisted: false,
+    bodyweight: false,
+    bodyweightFactor: 1,
     ...patch,
   });
   const exercises = new Map([
@@ -200,6 +202,8 @@ describe('muscle helpers', () => {
     muscleSource: 'user',
     unit: null,
     assisted: false,
+    bodyweight: false,
+    bodyweightFactor: 1,
   };
 
   it('muscleCredit rolls regions up to their best credit', () => {
@@ -260,5 +264,59 @@ describe('describeSet', () => {
     expect(describeSet(s({ weight: 0, reps: 0, distance: 1.5, seconds: 600 }), 'lb')).toBe(
       '1.5 dist × 600s',
     );
+  });
+});
+
+describe('bodyweight loading', () => {
+  const at = () => 180;
+
+  it('adds bodyweight to the logged weight', () => {
+    const [stat] = sessionStats([s({ weight: 25, reps: 5 })], {
+      ...opts,
+      bodyweight: { at, factor: 1, assisted: false },
+    });
+    expect(stat?.topWeight).toBe(205);
+    expect(stat?.volume).toBe(1025);
+    expect(stat?.e1rm).toBeCloseTo(205 * (1 + 5 / 30));
+  });
+
+  it('applies the factor for lifts that carry only part of it', () => {
+    const [stat] = sessionStats([s({ weight: 0, reps: 10 })], {
+      ...opts,
+      bodyweight: { at, factor: 0.65, assisted: false },
+    });
+    expect(stat?.topWeight).toBe(117);
+  });
+
+  it('subtracts assistance, so less help reads as a heavier lift', () => {
+    const [light, heavy] = sessionStats(
+      [
+        s({ date: '2024-01-01T10:00:00', weight: 70, reps: 8 }),
+        s({ date: '2024-01-08T10:00:00', weight: 50, reps: 8 }),
+      ],
+      { ...opts, assisted: true, bodyweight: { at, factor: 1, assisted: true } },
+    );
+    expect(light?.topWeight).toBe(110);
+    expect(heavy?.topWeight).toBe(130);
+    // Volume is real work now, not the meaningless assistance total.
+    expect(heavy?.volume).toBe(130 * 8);
+  });
+
+  it('leaves out a set whose assistance exceeds bodyweight instead of going negative', () => {
+    // Only reachable from bad data or a wrong unit; counted as a set, but no load to report.
+    const [stat] = sessionStats([s({ weight: 250, reps: 5 })], {
+      ...opts,
+      assisted: true,
+      bodyweight: { at, factor: 1, assisted: true },
+    });
+    expect(stat).toMatchObject({ sets: 1, topWeight: null, volume: 0, e1rm: null });
+  });
+
+  it('falls back to logged weight when no bodyweight covers the date', () => {
+    const [stat] = sessionStats([s({ weight: 25, reps: 5 })], {
+      ...opts,
+      bodyweight: { at: () => null, factor: 1, assisted: false },
+    });
+    expect(stat?.topWeight).toBe(25);
   });
 });

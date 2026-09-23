@@ -16,7 +16,13 @@ import {
   StatTile,
   TextLink,
 } from '../components/ui';
-import { availableMetrics, formatMetric, inRange, statsForExercise } from '../domain/analysis';
+import {
+  availableMetrics,
+  bodyweightLoadFor,
+  formatMetric,
+  inRange,
+  statsForExercise,
+} from '../domain/analysis';
 import { formatDate } from '../domain/dates';
 import {
   bucketSeries,
@@ -27,7 +33,7 @@ import {
 } from '../domain/metrics';
 import { exerciseUnit, formatNumber } from '../domain/units';
 import { useChartControls } from '../hooks/useChartControls';
-import { useExerciseSets, useExercises, useSettings } from '../hooks/useData';
+import { useBodyweights, useExerciseSets, useExercises, useSettings } from '../hooks/useData';
 import { usePref } from '../hooks/usePref';
 import { SERIES_COLORS } from '../lib/colors';
 
@@ -50,6 +56,7 @@ export default function ExerciseDetailPage() {
   const sets = useExerciseSets(name);
   const exercises = useExercises();
   const settings = useSettings();
+  const bodyweights = useBodyweights();
   const [metricPref, setMetric] = usePref<MetricId>('exercise.metric', 'e1rm');
   const { range, setRange, bucket, setBucket, start } = useChartControls('exercise', {
     range: 'all',
@@ -57,10 +64,13 @@ export default function ExerciseDetailPage() {
   });
 
   const ex = exercises?.get(name);
-  const assisted = ex?.assisted ?? false;
+  const unit = exerciseUnit(ex, settings.defaultUnit);
+  const bodyweightLoad = bodyweightLoadFor(ex, bodyweights, unit);
+  // With bodyweight applied, an assisted lift reads as an ordinary load again.
+  const assisted = (ex?.assisted ?? false) && !bodyweightLoad;
   const stats = useMemo(
-    () => (sets ? statsForExercise(sets, ex, settings) : []),
-    [sets, ex, settings],
+    () => (sets ? statsForExercise(sets, ex, settings, undefined, bodyweights) : []),
+    [sets, ex, settings, bodyweights],
   );
   const metrics = useMemo(() => availableMetrics(stats), [stats]);
   const metric = metrics.includes(metricPref) ? metricPref : (metrics[0] ?? 'sets');
@@ -79,7 +89,6 @@ export default function ExerciseDetailPage() {
     );
   }
 
-  const unit = exerciseUnit(ex, settings.defaultUnit);
   const bestE1rm = Math.max(0, ...stats.map((s) => s.e1rm ?? 0));
   const best = bestByWeight(stats, assisted);
   const last = stats[stats.length - 1];
@@ -127,7 +136,13 @@ export default function ExerciseDetailPage() {
 
       <Card
         title={def.label}
-        subtitle={def.description}
+        subtitle={
+          bodyweightLoad
+            ? `${def.description}. Weights include your logged bodyweight${
+                ex.bodyweightFactor === 1 ? '' : ` at ${Math.round(ex.bodyweightFactor * 100)}%`
+              }.`
+            : def.description
+        }
         actions={
           <RangeControls range={range} onRange={setRange} bucket={bucket} onBucket={setBucket} />
         }
@@ -151,7 +166,11 @@ export default function ExerciseDetailPage() {
             className="max-h-96 divide-y divide-border overflow-auto"
           />
         </Card>
-        <ExerciseSettingsCard exercise={ex} defaultUnit={settings.defaultUnit} />
+        <ExerciseSettingsCard
+          exercise={ex}
+          defaultUnit={settings.defaultUnit}
+          hasBodyweightLog={bodyweights.length > 0}
+        />
       </div>
 
       <Card title="History" subtitle={`${stats.length} sessions, newest first`}>

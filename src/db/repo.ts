@@ -1,3 +1,4 @@
+import { isBodyweightName, type BodyweightEntry } from '../domain/bodyweight';
 import { parseExerciseName, isAssistedName } from '../domain/exerciseName';
 import { suggestMuscles } from '../domain/muscles';
 import {
@@ -21,7 +22,7 @@ import type { ParseResult, ParsedExercise } from '../importers/types';
 import type { OverloadDB, RemovalRow } from './db';
 
 const SETTINGS_KEY = 'settings';
-export const BACKUP_VERSION = 3;
+export const BACKUP_VERSION = 4;
 
 export async function loadSettings(db: OverloadDB): Promise<Settings> {
   const row = await db.meta.get(SETTINGS_KEY);
@@ -149,6 +150,8 @@ export function mergeExercise(existing: Exercise | undefined, parsed: ParsedExer
     muscleSource: 'unassigned',
     unit: null,
     assisted: isAssistedName(parsed.name),
+    bodyweight: isBodyweightName(parsed.name),
+    bodyweightFactor: 1,
   };
   const next = { ...base };
   if (parsed.muscles && next.muscleSource !== 'user') {
@@ -371,6 +374,25 @@ export async function deleteProfile(db: OverloadDB, id: number): Promise<void> {
   await db.profiles.delete(id);
 }
 
+export function listBodyweights(db: OverloadDB): Promise<BodyweightEntry[]> {
+  return db.bodyweights.orderBy('date').toArray();
+}
+
+/** One entry per day; logging the same day again replaces it. */
+export async function saveBodyweight(
+  db: OverloadDB,
+  entry: Omit<BodyweightEntry, 'id'>,
+): Promise<void> {
+  await db.transaction('rw', db.bodyweights, async () => {
+    const existing = await db.bodyweights.where('date').equals(entry.date).first();
+    await db.bodyweights.put({ ...entry, id: existing?.id });
+  });
+}
+
+export async function deleteBodyweight(db: OverloadDB, id: number): Promise<void> {
+  await db.bodyweights.delete(id);
+}
+
 /** Accepts every suggested muscle assignment as the user's own. Returns how many changed. */
 export async function confirmSuggestedMuscles(db: OverloadDB): Promise<number> {
   return db.exercises.where('muscleSource').equals('suggested').modify({ muscleSource: 'user' });
@@ -379,7 +401,16 @@ export async function confirmSuggestedMuscles(db: OverloadDB): Promise<number> {
 export async function clearAllData(db: OverloadDB, opts: { keepSettings: boolean }): Promise<void> {
   await db.transaction(
     'rw',
-    [db.sets, db.workouts, db.exercises, db.imports, db.removals, db.profiles, db.meta],
+    [
+      db.sets,
+      db.workouts,
+      db.exercises,
+      db.imports,
+      db.removals,
+      db.profiles,
+      db.bodyweights,
+      db.meta,
+    ],
     async () => {
       await Promise.all([
         db.sets.clear(),
@@ -392,7 +423,12 @@ export async function clearAllData(db: OverloadDB, opts: { keepSettings: boolean
         // Saved CSV mappings are configuration too, so they stay either way here.
         await db.exercises.filter((e) => e.muscleSource !== 'user' && e.unit == null).delete();
       } else {
-        await Promise.all([db.exercises.clear(), db.profiles.clear(), db.meta.clear()]);
+        await Promise.all([
+          db.exercises.clear(),
+          db.profiles.clear(),
+          db.bodyweights.clear(),
+          db.meta.clear(),
+        ]);
       }
     },
   );
@@ -411,18 +447,22 @@ export interface Backup {
   removals?: RemovalRow[];
   /** Saved CSV column mappings. Absent before v3. */
   profiles?: MappingProfile[];
+  /** Logged bodyweight. Absent before v4. */
+  bodyweights?: BodyweightEntry[];
 }
 
 export async function exportBackup(db: OverloadDB): Promise<Backup> {
-  const [settings, exercises, workouts, sets, imports, removals, profiles] = await Promise.all([
-    loadSettings(db),
-    db.exercises.toArray(),
-    db.workouts.toArray(),
-    db.sets.toArray(),
-    db.imports.toArray(),
-    db.removals.toArray(),
-    db.profiles.toArray(),
-  ]);
+  const [settings, exercises, workouts, sets, imports, removals, profiles, bodyweights] =
+    await Promise.all([
+      loadSettings(db),
+      db.exercises.toArray(),
+      db.workouts.toArray(),
+      db.sets.toArray(),
+      db.imports.toArray(),
+      db.removals.toArray(),
+      db.profiles.toArray(),
+      db.bodyweights.toArray(),
+    ]);
   return {
     app: 'overload',
     version: BACKUP_VERSION,
@@ -434,6 +474,7 @@ export async function exportBackup(db: OverloadDB): Promise<Backup> {
     imports,
     removals,
     profiles,
+    bodyweights,
   };
 }
 
@@ -457,7 +498,16 @@ export async function restoreBackup(db: OverloadDB, backup: Backup): Promise<voi
   }
   await db.transaction(
     'rw',
-    [db.sets, db.workouts, db.exercises, db.imports, db.removals, db.profiles, db.meta],
+    [
+      db.sets,
+      db.workouts,
+      db.exercises,
+      db.imports,
+      db.removals,
+      db.profiles,
+      db.bodyweights,
+      db.meta,
+    ],
     async () => {
       await Promise.all([
         db.sets.clear(),
@@ -466,6 +516,7 @@ export async function restoreBackup(db: OverloadDB, backup: Backup): Promise<voi
         db.imports.clear(),
         db.removals.clear(),
         db.profiles.clear(),
+        db.bodyweights.clear(),
         db.meta.clear(),
       ]);
       await db.meta.put({ key: SETTINGS_KEY, value: { ...DEFAULT_SETTINGS, ...backup.settings } });
@@ -475,6 +526,7 @@ export async function restoreBackup(db: OverloadDB, backup: Backup): Promise<voi
       await db.sets.bulkPut(backup.sets);
       await db.removals.bulkPut(backup.removals ?? []);
       await db.profiles.bulkPut(backup.profiles ?? []);
+      await db.bodyweights.bulkPut(backup.bodyweights ?? []);
     },
   );
 }

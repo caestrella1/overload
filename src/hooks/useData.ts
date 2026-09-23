@@ -26,6 +26,10 @@ export function useWorkouts() {
   return useLiveQuery(() => db.workouts.orderBy('date').toArray(), []);
 }
 
+export function useBodyweights() {
+  return useLiveQuery(() => db.bodyweights.orderBy('date').toArray(), [], []);
+}
+
 export function useImports() {
   return useLiveQuery(() => db.imports.orderBy('importedAt').reverse().toArray(), []);
 }

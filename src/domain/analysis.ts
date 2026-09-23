@@ -1,3 +1,4 @@
+import { bodyweightAt, type BodyweightEntry } from './bodyweight';
 import { bucketKey, type Bucket } from './dates';
 import {
   detectPrs,
@@ -12,7 +13,25 @@ import {
   type SessionStat,
 } from './metrics';
 import type { Exercise, Settings, Unit, WorkoutSet } from './types';
+import type { BodyweightLoad } from './metrics';
 import { convertWeight, exerciseUnit, formatCompact, formatNumber } from './units';
+
+/**
+ * Bodyweight loading for an exercise, or undefined when it does not apply: the lift does
+ * not carry bodyweight, or nothing has been logged to carry.
+ */
+export function bodyweightLoadFor(
+  exercise: Exercise | undefined,
+  log: BodyweightEntry[],
+  unit: Unit,
+): BodyweightLoad | undefined {
+  if (!exercise?.bodyweight || !log.length) return undefined;
+  return {
+    at: (date) => bodyweightAt(log, date, unit),
+    factor: exercise.bodyweightFactor,
+    assisted: exercise.assisted,
+  };
+}
 
 /** Session stats for one exercise, optionally converted into `targetUnit`. */
 export function statsForExercise(
@@ -20,13 +39,16 @@ export function statsForExercise(
   exercise: Exercise | undefined,
   settings: Settings,
   targetUnit?: Unit,
+  bodyweightLog: BodyweightEntry[] = [],
 ): SessionStat[] {
   const unit = exerciseUnit(exercise, settings.defaultUnit);
+  const statsUnit = targetUnit ?? unit;
   return sessionStats(sets, {
     includeWarmups: settings.includeWarmups,
     formula: settings.e1rmFormula,
     assisted: exercise?.assisted,
     scale: targetUnit ? convertWeight(1, unit, targetUnit) : 1,
+    bodyweight: bodyweightLoadFor(exercise, bodyweightLog, statsUnit),
   });
 }
 
@@ -45,11 +67,15 @@ export function allPrs(
   sets: WorkoutSet[],
   exercises: Map<string, Exercise>,
   settings: Settings,
+  bodyweightLog: BodyweightEntry[] = [],
 ): PrEvent[] {
   const out: PrEvent[] = [];
   for (const [name, list] of groupByExercise(sets)) {
     const ex = exercises.get(name);
-    out.push(...detectPrs(statsForExercise(list, ex, settings), { assisted: ex?.assisted }));
+    const stats = statsForExercise(list, ex, settings, undefined, bodyweightLog);
+    // Bodyweight turns an assisted lift into an ordinary load, so lower stops being better.
+    const assisted = ex?.assisted && !bodyweightLoadFor(ex, bodyweightLog, settings.defaultUnit);
+    out.push(...detectPrs(stats, { assisted }));
   }
   return out.sort((a, b) => b.date.localeCompare(a.date));
 }

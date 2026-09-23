@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { StackedBars } from '../components/charts';
 import { NoDataPage } from '../components/NoDataPage';
+import { BodyweightCard } from '../components/BodyweightCard';
 import { PrList } from '../components/PrList';
 import { SampleDataBanner } from '../components/SampleDataBanner';
 import { RangeControls } from '../components/RangeControls';
@@ -17,7 +18,13 @@ import { allPrs, inRange, periodTotals, type PeriodTotal } from '../domain/analy
 import { formatDate, toLocalString, weekKey } from '../domain/dates';
 import { exerciseUnit, formatCompact, formatNumber } from '../domain/units';
 import { useChartControls } from '../hooks/useChartControls';
-import { useAllSets, useExercises, useSettings, useWorkouts } from '../hooks/useData';
+import {
+  useAllSets,
+  useBodyweights,
+  useExercises,
+  useSettings,
+  useWorkouts,
+} from '../hooks/useData';
 import { usePref } from '../hooks/usePref';
 import { SERIES_COLORS } from '../lib/colors';
 
@@ -41,6 +48,7 @@ export default function DashboardPage() {
   const exercises = useExercises();
   const workouts = useWorkouts();
   const settings = useSettings();
+  const bodyweights = useBodyweights();
   const { range, setRange, start } = useChartControls('dash', { range: '6m', bucket: 'week' });
   const [metric, setMetric] = usePref<TotalMetric>('dash.metric', 'volume');
 
@@ -49,8 +57,8 @@ export default function DashboardPage() {
     [sets, exercises, settings],
   );
   const prs = useMemo(
-    () => (sets && exercises ? allPrs(sets, exercises, settings) : []),
-    [sets, exercises, settings],
+    () => (sets && exercises ? allPrs(sets, exercises, settings, bodyweights) : []),
+    [sets, exercises, settings, bodyweights],
   );
 
   if (!sets || !exercises || !workouts) return null;
@@ -146,6 +154,10 @@ export default function DashboardPage() {
             unitFor={(name) => exerciseUnit(exercises.get(name), unit)}
           />
         </Card>
+      </div>
+
+      <div className="mt-6">
+        <BodyweightCard />
       </div>
     </>
   );
